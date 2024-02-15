@@ -1,4 +1,4 @@
-# Nodepp-Arduino
+# Nodepp-ESP32
 
 <img src="https://github.com/NodeppOficial/nodepp-arduino/assets/109326461/3d427678-9bea-4f71-93a4-37c349a01e22" 
      width="180px" align="left" style=" padding:10px; " >
@@ -7,6 +7,7 @@
 
 ## Features
 
+- **ESP32 | ESP8266** Compatible
 - Open source project, meaning anyone can contribute and improve it
 - Allows writing **C++** code as if writing in **NodeJS** or **Javascript**
 - Adds a high-level abstraction layer to simplify **C++** application development
@@ -33,12 +34,6 @@ Hello World!
 ## FAQ
 - reddit : [/r/Cplusplus/](https://www.reddit.com/r/Cplusplus/comments/19e2kw3/write_asynchronous_code_with_c_nodepp/) 
 - reddit : [/r/cpp/](https://www.reddit.com/r/cpp/comments/19camli/write_asynchronously_code_with_c_nodepp/)
-
-## Links
-
-- **Nodepp:** compatible with Arduino [here](https://github.com/NodeppOficial/nodepp-arduino)
-- **Nodepp:** compatible with PC      [here](https://github.com/NodeppOficial/Nodepp)
-- **Nodepp:** compatible with ESPxxxx [here](https://github.com/NodeppOficial/Nodepp)
   
 ## Contribution
 
