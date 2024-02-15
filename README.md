@@ -1,4 +1,4 @@
-# Nodepp-ESP32
+# Nodepp-Espressif
 
 <img src="https://github.com/NodeppOficial/nodepp-ESP32/assets/109326461/46977373-dc1b-4cc8-97e8-6a61d8623b23" 
      width="180px" align="left" style=" padding:10px; " >
