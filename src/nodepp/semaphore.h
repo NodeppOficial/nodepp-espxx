@@ -16,18 +16,35 @@ public:
     
     /*─······································································─*/
 
-    void wait( uchar count ) const noexcept {
-        obj->mutex.lock(); obj->ctx%=obj.count(); obj->mutex.unlock();
-        while( obj->ctx != count ) { worker::yield(); }
+    void wait( uchar count ) const noexcept { goto check;
+
+        loop:
+            while( obj->ctx != count ) { worker::yield(); }
+        
+        check:
+            obj->mutex.lock(); 
+            if( obj->ctx>obj.count() ) obj->ctx = 0;
+            if( obj.count()>0 ) obj->ctx %= obj.count(); 
+            if( obj->ctx != count ) 
+              { obj->mutex.unlock(); goto loop; }
+            obj->mutex.unlock();
+
     }
     
     /*─······································································─*/
 
-    void wait() const noexcept {
-        while( obj->ctx != 0 ) { worker::yield(); }
-        obj->mutex.lock(); 
-        obj->ctx--;
-        obj->mutex.unlock();
+    void wait() const noexcept { goto check;
+
+        loop:
+            while((obj->ctx%2) !=0 ) { worker::yield(); }
+        
+        check:
+            obj->mutex.lock(); 
+            if((obj->ctx%2) != 0 )
+              { obj->mutex.unlock(); goto loop; }
+            obj->ctx++;
+            obj->mutex.unlock();
+
     }
 
     void release() const noexcept {
