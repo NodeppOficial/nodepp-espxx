@@ -16,8 +16,11 @@ template< class T > T clamp( const T& val, const T& _min, const T& _max ){ retur
 
 #define _main_ _init_(); void setup(){ \
    Serial.begin( 9600 ); _init_(); \
-} void loop(){ process::next(); \
-} void _init_
+} void loop(){ process::next(); } void _init_
+
+#define onMain(CB) _init_(); void setup(){ \
+   Serial.begin( 9600 ); CB(); \
+}  void loop(){ process::next(); }
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
@@ -69,11 +72,9 @@ template< class T > T clamp( const T& val, const T& _min, const T& _max ){ retur
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-#define typeof(DATA) (string_t){ typeid( DATA ).name() }
+struct NODEPP_GENERATOR_BASE { protected: int _state_ = 0; };
 
-struct NODEPP_GENERATOR_BASE { protected:
-   int  _state_ = 0;
-};
+#define typeof(DATA) (string_t){ typeid( DATA ).name() }
 
 #define ullong  unsigned long long int
 #define ulong   unsigned long int
