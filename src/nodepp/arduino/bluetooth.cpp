@@ -45,7 +45,7 @@ public: bsocket_t() noexcept : socket_t() {}
         set_reuse_port(1);
     #endif
         
-        SOCKADDR_RC server, client;
+        SOCKADDR_RC server, client; if( port>0 )
         server.rc_channel = (uint8_t) port;
         server.rc_family  = AF;
 

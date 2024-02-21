@@ -2,15 +2,6 @@
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-#include <netdb.h>
-#include <iomanip>
-#include <net/if.h>
-#include <arpa/inet.h>
-#include <sys/types.h>
-#include <netinet/in.h>
-
-/*────────────────────────────────────────────────────────────────────────────*/
-
 namespace {
     using HOSTENT = struct hostent;
     using INADDR  = struct in_addr;
@@ -25,7 +16,7 @@ namespace nodepp { namespace dns {
     
     /*─······································································─*/
 
-    string_t lookup( string_t host ) { 
+    string_t lookup( string_t host ) { socket::start_device();
 
           if( host == "255.255.255.255" || host == "broadcast" ) { return "255.255.255.255"; } 
         elif( host == "127.0.0.1" || host == "localhost" )       { return "127.0.0.1";       } 
@@ -43,9 +34,23 @@ namespace nodepp { namespace dns {
             }
         }
 
-        return "";
+        return nullptr;
     }
+    
+    /*─······································································─*/
 
+    string_t get_hostname(){
+        auto socket = socket_t();
+        auto result = string_t();
+            
+        socket.SOCK = SOCK_DGRAM;
+        socket.PROT = IPPROTO_UDP;
+        socket.socket ( "127.0.0.1", 0 );
+        socket.connect();
+
+        return socket.get_sockname();
+    }
+    
     /*─······································································─*/
 
     bool is_ipv4( const string_t& URL ){ return regex::test( URL, ipv4 ) ? 1 : 0; }

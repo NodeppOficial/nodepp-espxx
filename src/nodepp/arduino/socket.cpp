@@ -11,6 +11,28 @@
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
+namespace nodepp { namespace socket {
+
+    void start_device(){ static bool sockets=false; 
+        if( sockets == false ){
+
+            process::onSIGEXIT([=](){
+                #ifdef SIGPIPE
+                    process::signal::unignore( SIGPIPE );
+                #endif 
+            });
+            
+                #ifdef SIGPIPE
+                    process::signal::ignore( SIGPIPE );
+                #endif
+
+        }   sockets = true;
+    }
+
+}}
+
+/*────────────────────────────────────────────────────────────────────────────*/
+
 namespace nodepp {
 
 struct agent_t {
@@ -51,7 +73,7 @@ protected:
         );
     }
 
-public: socket_t() noexcept { }
+public: socket_t() noexcept { socket::start_device(); }
 
     int SOCK  = SOCK_STREAM;
     int AF    = AF_INET; 
@@ -176,7 +198,14 @@ public: socket_t() noexcept { }
     
     /*─······································································─*/
 
-    string_t get_ip() const noexcept { int c; string_t buff { INET_ADDRSTRLEN };
+    string_t get_sockname() const noexcept { int c; string_t buff { INET_ADDRSTRLEN };
+        SOCKADDR cli; if( skt->srv==1 ) cli = skt->client_addr; else cli = skt->server_addr;
+        while( is_blocked( c=getsockname( obj->fd, &cli, &skt->len )) ){ process::next(); }
+        inet_ntop( AF, &(((SOCKADDR_IN*)&cli)->sin_addr), (char*)buff, buff.size() );
+        return c < 0 ? "127.0.0.1" : buff;
+    }
+
+    string_t get_peername() const noexcept { int c; string_t buff { INET_ADDRSTRLEN };
         SOCKADDR cli; if( skt->srv==1 ) cli = skt->client_addr; else cli = skt->server_addr;
         while( is_blocked( c=getpeername( obj->fd, &cli, &skt->len )) ){ process::next(); }
         inet_ntop( AF, &(((SOCKADDR_IN*)&cli)->sin_addr), (char*)buff, buff.size() );
@@ -242,7 +271,7 @@ public: socket_t() noexcept { }
     
     /*─······································································─*/
 
-    socket_t( int fd, ulong _size=CHUNK_SIZE ){
+    socket_t( int fd, ulong _size=CHUNK_SIZE ){ socket::start_device();
         if( fd < 0 )  process::error("Such Socket has an Invalid fd");
         obj->fd = fd; set_nonbloking_mode(); set_buffer_size(_size); 
     }
@@ -260,7 +289,7 @@ public: socket_t() noexcept { }
 
     virtual int socket( const string_t& host, int port ) noexcept { 
         if( host.empty() ){ process::error(onError,"dns coudn't found ip"); return -1; }
-        skt->addrlen = sizeof( skt->server_addr );
+        skt->addrlen = sizeof( skt->server_addr ); socket::start_device();
 
         if((obj->fd=::socket( AF, SOCK, PROT )) <= 0 )
           { process::error(onError,"can't initializate socket fd"); return -1; } 
@@ -277,12 +306,12 @@ public: socket_t() noexcept { }
         memset(&server, 0, sizeof(SOCKADDR_IN));
         memset(&client, 0, sizeof(SOCKADDR_IN));
 
-        server.sin_family  = AF;
+        server.sin_family  = AF; if( port>0 ) 
         server.sin_port    = htons(port);
 
           if( host == "0.0.0.0" || host == "globalhost" )       { server.sin_addr.s_addr = INADDR_ANY; }
+        elif( host == "127.0.0.1" || host == "localhost" )      { server.sin_addr.s_addr = INADDR_LOOPBACK; }
         elif( host == "255.255.255.255" || host == "broadcast" ){ server.sin_addr.s_addr = INADDR_BROADCAST; } 
-        elif( host == "127.0.0.1" || host == "localhost" )      { inet_pton(AF, "127.0.0.1", &server.sin_addr); }
         else                                                    { inet_pton(AF, host.c_str(), &server.sin_addr); }
 
         skt->server_addr = *((SOCKADDR*) &server);
