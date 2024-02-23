@@ -4,7 +4,6 @@
 /*────────────────────────────────────────────────────────────────────────────*/
 
 #include "ssocket.h"
-#include "poll.h"
 #include "dns.h"
 
 /*────────────────────────────────────────────────────────────────────────────*/
@@ -18,26 +17,10 @@ protected:
 
     struct NODE {
         int                        state = 0;
-        bool                       chck  = 1;
         agent_t                    agent;
         ssl_t                      ctx  ; 
-        poll_t                     poll ;
         function_t<void,ssocket_t> func ;
     };  ptr_t<NODE> obj;
-    
-    /*─······································································─*/
-
-    void init_poll_loop( ptr_t<const tls_t>& inp ) const noexcept { process::poll::add([=](){
-        if( inp->is_closed() ){ return -1; } if( inp->obj->poll.emit() != -1 ) { auto x = inp->obj->poll.get_last_poll();
-            if( x[0] == 0 ){ ssocket_t cli(inp->obj->ctx,x[1]); cli.set_sockopt(inp->obj->agent); inp->onSocket.emit(cli); inp->obj->func(cli); }
-            if( x[0] == 1 ){ ssocket_t cli(inp->obj->ctx,x[1]); cli.set_sockopt(inp->obj->agent); inp->onSocket.emit(cli); inp->obj->func(cli); }
-        #if _KERNEL == NODEPP_KERNEL_WINDOWS
-            if( x[0] ==-1 ){ ::closesocket(x[1]); }
-        #else
-            if( x[0] ==-1 ){ ::close(x[1]); }
-        #endif
-        }   return 1; 
-    }); }
     
 public: tls_t() noexcept : obj( new NODE() ) {}
 
@@ -63,10 +46,6 @@ public: tls_t() noexcept : obj( new NODE() ) {}
     
     /*─······································································─*/
 
-    void poll( bool chck ) const noexcept { obj->chck = chck; }
-    
-    /*─······································································─*/
-
     void listen( const string_t& host, int port, decltype(NODE::func)* cb=nullptr  ) const noexcept {
         if( obj->state == 1 ){ return; } obj->state = 1; if( obj->ctx.create_server() == -1 )
           { process::error(onError,"Error Initializing SSL context"); close(); return; }
@@ -79,7 +58,6 @@ public: tls_t() noexcept : obj( new NODE() ) {}
         
         if( sk->bind()    < 0 ){ process::error(onError,"Error while binding TLS");   close(); delete sk; return; }
         if( sk->listen()  < 0 ){ process::error(onError,"Error while listening TLS"); close(); delete sk; return; }
-        if( obj->chck == true ){ init_poll_loop( inp ); }
 
         onOpen.emit(*sk); if( cb != nullptr ){ (*cb)(*sk); } 
         
@@ -95,7 +73,6 @@ public: tls_t() noexcept : obj( new NODE() ) {}
             
             if( _accept == -1 ){ process::error(inp->onError,"Error while accepting TLS"); coGoto(2); }
             elif ( !sk->is_available() || inp->is_closed() ){ coGoto(2); }
-            elif ( inp->obj->chck == true ){ inp->obj->poll.push_read(_accept); coGoto(0); }
             else { ssocket_t cli( inp->obj->ctx, _accept ); if( cli.is_available() ){ 
                    process::poll::add([=]( ssocket_t cli ){
                         cli.set_sockopt( inp->obj->agent ); 
@@ -122,7 +99,7 @@ public: tls_t() noexcept : obj( new NODE() ) {}
         if( obj->state == 1 ){ return; } obj->state = 1; if( obj->ctx.create_client() == -1 )
           { process::error(onError,"Error Initializing SSL context"); close(); return; }
         if( dns::lookup(host).empty() )
-           { process::error(onError,"dns couldn't get ip"); close(); return; }
+          { process::error(onError,"dns couldn't get ip"); close(); return; }
             auto inp = type::bind( this );
 
         ssocket_t sk = ssocket_t(); 
@@ -173,7 +150,7 @@ namespace tls {
             server.onConnect.emit(cli); return -1;
         });
 
-    }); server.poll( false ); return server; }
+    }); return server; }
 
     /*─······································································─*/
 

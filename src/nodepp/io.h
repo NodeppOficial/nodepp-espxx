@@ -33,21 +33,21 @@ namespace nodepp { namespace IO {
     /*─······································································─*/
 
     namespace digital {
-        template< class... T > int read( const T&... args ){ return digitalRead(args...); }
+        template< class... T > int   read( const T&... args ){ return digitalRead(args...);  }
         template< class... T > void write( const T&... args ){ return digitalWrite(args...); }
     }
     
     /*─······································································─*/
 
     namespace duration {
-        template< class... T > ulong in( const T&... args ){ return pulseIn(args...); }
+        template< class... T > ulong     in( const T&... args ){ return pulseIn(args...);     }
         template< class... T > ulong inlong( const T&... args ){ return pulseInLong(args...); }
     }
     
     /*─······································································─*/
 
     namespace analog {
-        template< class... T > int read( const T&... args ){ return analogRead(args...); }
+        template< class... T > int   read( const T&... args ){ return analogRead(args...);  }
         template< class... T > void write( const T&... args ){ return analogWrite(args...); }
         template< class... T > void reference( const T&... args ){ return analogReference(args...); }
         template< class... T > void set_read_resolution( const T&... args ){ return analogReadResolution(args...); }

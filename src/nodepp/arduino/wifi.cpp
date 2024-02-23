@@ -7,84 +7,70 @@
 /*────────────────────────────────────────────────────────────────────────────*/
 
 namespace nodepp { class wifi_t {
-private:
-
-    using INFO = wireless_scan_head;
-
-protected:
-
-    struct NODE { int sockfd; };
-    ptr_t <NODE> obj;
-
 public:
 
-    virtual ~wifi_t() noexcept {
-        if( obj.count() > 1 ){ return; } 
-        iw_sockets_close( obj->sockfd ); 
+    virtual ~wifi_t() noexcept {}
+             wifi_t() noexcept {}
+
+    int turn_on() const noexcept {
+        return esp_wifi_start() == ESP_OK;
     }
 
-    wifi_t() : obj( new NODE() ) { 
-        obj->sockfd = iw_sockets_open(); if( obj->sockfd<0 )
-             process::error("Failed to open Wi-Fi adapter");
+    int turn_off() const noexcept {
+        return esp_wifi_stop() == ESP_OK;
     }
 
-    int turn_on( const string_t& device ) const noexcept {
-        return system(string::format("ifconfig %s down",device.data()).c_str());
+    string_t get_hostname() const noexcept {
+        return dns::get_hostname();
     }
 
-    int turn_off( const string_t& device ) const noexcept {
-        return system(string::format("ifconfig %s up",device.data()).c_str());
-    }
+    ptr_t<wifi_ap_record_t> get_ssid_list() const noexcept {
+        wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+        esp_wifi_init( &cfg ); esp_wifi_start();
 
-    string_t get_hostname( const string_t& device ) const noexcept {
-        struct ifaddrs *interfaces = NULL;
-        struct ifaddrs *temp_addr  = NULL;
-        string_t result;
+        wifi_scan_config_t scan_config = {
+            .show_hidden = true, .ssid = 0,
+            .channel = 0,        .bssid = 0,
+        };
 
-        if ( getifaddrs(&interfaces) == 0 ) {
-            temp_addr = interfaces; while (temp_addr!=NULL) {
-                if ( temp_addr->ifa_addr->sa_family == AF_INET ) {
-                if ( strcmp(temp_addr->ifa_name,device.c_str()) == 0 ) {
-                    result = inet_ntoa(((struct sockaddr_in*)temp_addr->ifa_addr)->sin_addr);
-                }}  temp_addr = temp_addr->ifa_next;
-            }
-        }
-
-        freeifaddrs(interfaces); return result;
-    }
-
-    array_t<string_t> get_device_list() const noexcept {
-        struct ifaddrs *interfaces = NULL;
-        struct ifaddrs *temp_addr  = NULL;
-        array_t<string_t> result;
-
-        if ( getifaddrs(&interfaces) == 0 ) {
-            temp_addr = interfaces; while (temp_addr!=NULL) {
-                if ( temp_addr->ifa_addr->sa_family == AF_INET ) {
-                    result.push( temp_addr->ifa_name );
-                }   temp_addr = temp_addr->ifa_next;
-            }
-        }
-
-        freeifaddrs(interfaces); return result;
-    }
-
-    array_t<string_t> get_ssid_list( const string_t& device ) const noexcept {
-        wireless_scan     *scan_result = nullptr;
-        iw_bss            *bss         = nullptr;
-        wireless_scan_head scan_head;
-        array_t<string_t>  list;
-
-        if( iw_scan(obj->sockfd,device.c_str(),0,&scan_result)<0 ) { return list; }
-
-        for( bss = scan_result->result; bss; bss = bss->next ) {
-            char ssid[IW_ESSID_MAX_SIZE + 1];
-            iw_ether_ntop(&bss->bssid, ssid);
-            list.push( ssid );
-        }
+        esp_wifi_scan_start( &scan_config, true );
         
-        return list;
+        ptr_t<wifi_ap_record_t> ap_info; uint16_t len=0; 
+        while( !ap_info.empty() ) {
+            if( esp_wifi_connect() == ESP_OK ) {
+                esp_wifi_scan_get_ap_num(&len); ap_info.resize(len);
+                esp_wifi_scan_get_ap_records(&len,&ap_info);
+            }   process::next();
+        }
+
+        return ap_info;
     }
+
+    void connect( const string_t& ssid, const string_t& port ) const noexcept {
+        wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+        esp_wifi_init( &cfg ); wifi_config_t wifi_config; 
+
+        memset( wifi_config, 0, sizeof(wifi_config_t) );
+                wifi_config.sta = {
+                    .ssid     = ssid.c_str(),
+                    .password = port.c_str()
+                };
+
+        esp_wifi_set_mode( WIFI_MODE_STA );
+        esp_wifi_set_config( ESP_IF_WIFI_STA, &wifi_config );
+
+        if( esp_wifi_start() != ESP_OK )
+          { process::error("can't connect to ssid"); }
+
+        wifi_ap_record_t ap_info; 
+        while( true ) {
+            if( esp_wifi_connect() == ESP_OK ) {
+                esp_wifi_scan_get_ap_record(&ap_info);
+            if( ap_info.rssi > -50 ){ break; }
+            }   process::next();
+        }
+    }
+
 };}
 
 /*────────────────────────────────────────────────────────────────────────────*/

@@ -12,6 +12,8 @@ public:
 
     virtual ~semaphore_t() noexcept {
         if( obj->addr == (void*)this ){ release(); }
+        if( mutex.count() > 1 )       { return;    }
+        //force_close();
     };
 
     semaphore_t() : obj( new NODE() ){}
@@ -55,7 +57,7 @@ public:
         obj->mutex.unlock();
     }
 
-private:
+protected:
 
     struct NODE {
         void*   addr=nullptr;

@@ -4,7 +4,6 @@
 /*────────────────────────────────────────────────────────────────────────────*/
 
 #include "socket.h"
-#include "poll.h"
 #include "dns.h"
 
 /*────────────────────────────────────────────────────────────────────────────*/
@@ -18,25 +17,9 @@ protected:
 
     struct NODE {
         int                       state = 0;
-        bool                      chck  = 1;
         agent_t                   agent;
-        poll_t                    poll ;
         function_t<void,socket_t> func ;
     };  ptr_t<NODE> obj;
-    
-    /*─······································································─*/
-
-    void init_poll_loop( ptr_t<const tcp_t>& inp ) const noexcept { process::poll::add([=](){
-        if( inp->is_closed() ){ return -1; } if( inp->obj->poll.emit() != -1 ) { auto x = inp->obj->poll.get_last_poll();
-            if( x[0] == 0 ){ socket_t cln(x[1]); cln.set_sockopt(inp->obj->agent); inp->onSocket.emit(cln); inp->obj->func(cln); }
-            if( x[0] == 1 ){ socket_t cln(x[1]); cln.set_sockopt(inp->obj->agent); inp->onSocket.emit(cln); inp->obj->func(cln); }
-        #if _KERNEL == NODEPP_KERNEL_WINDOWS
-            if( x[0] ==-1 ){ ::closesocket(x[1]); }
-        #else
-            if( x[0] ==-1 ){ ::close(x[1]); }
-        #endif
-        }   return 1;
-    }); }
     
 public: tcp_t() noexcept : obj( new NODE() ) {}
 
@@ -58,10 +41,6 @@ public: tcp_t() noexcept : obj( new NODE() ) {}
     
     /*─······································································─*/
 
-    void poll( bool chck ) const noexcept { obj->chck = chck; }
-    
-    /*─······································································─*/
-
     void listen( const string_t& host, int port, decltype(NODE::func)* cb=nullptr ) const noexcept {
         if( obj->state == 1 ){ return; } obj->state = 1; auto inp = type::bind( this );
         if( dns::lookup(host).empty() ){ process::error(onError,"dns couldn't get ip"); close(); return; }
@@ -72,7 +51,6 @@ public: tcp_t() noexcept : obj( new NODE() ) {}
         
         if(   sk->bind()  < 0 ){ process::error(onError,"Error while binding TCP");   close(); delete sk; return; }
         if( sk->listen()  < 0 ){ process::error(onError,"Error while listening TCP"); close(); delete sk; return; }
-        if( obj->chck == true ){ init_poll_loop( inp ); }
 
         onOpen.emit(*sk); if( cb != nullptr ){ (*cb)(*sk); }
         
@@ -88,7 +66,6 @@ public: tcp_t() noexcept : obj( new NODE() ) {}
             
             if( _accept == -1 ){ process::error(inp->onError,"Error while accepting TCP"); coGoto(2); }
             elif ( !sk->is_available() || inp->is_closed() ){ coGoto(2); }
-            elif ( inp->obj->chck == true ){ inp->obj->poll.push_read(_accept); coGoto(0); }
             else { socket_t cln( _accept ); if( cln.is_available() ){ 
                    process::poll::add([=]( socket_t cln ){
                         cln.set_sockopt( inp->obj->agent ); 
@@ -152,7 +129,7 @@ namespace tcp {
             server.onConnect.emit(cln); return -1;
         });
 
-    }); server.poll( false ); return server; }
+    }); return server; }
 
     /*─······································································─*/
 
@@ -163,7 +140,7 @@ namespace tcp {
 
     /*─······································································─*/
 
-    tcp_t clnent( const tcp_t& clnent ){ clnent.onOpen.once([=]( socket_t cln ){
+    tcp_t client( const tcp_t& client ){ client.onOpen.once([=]( socket_t cln ){
         ptr_t<_file_::read> _read = new _file_::read;
         cln.onDrain.once([=](){ cln.free(); });
         cln.busy();
@@ -175,13 +152,13 @@ namespace tcp {
             cln.onData.emit(_read->y); return 1;
         }); 
 
-    }); return clnent; }
+    }); return client; }
 
     /*─······································································─*/
 
-    tcp_t clnent( agent_t* opt=nullptr ){
-        auto clnent = tcp_t( [=]( socket_t /*unused*/ ){}, opt );
-        tcp::clnent( clnent ); return clnent; 
+    tcp_t client( agent_t* opt=nullptr ){
+        auto client = tcp_t( [=]( socket_t /*unused*/ ){}, opt );
+        tcp::client( client ); return client; 
     }
 
 }

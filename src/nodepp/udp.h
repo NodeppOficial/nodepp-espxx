@@ -4,7 +4,6 @@
 /*────────────────────────────────────────────────────────────────────────────*/
 
 #include "socket.h"
-#include "poll.h"
 #include "dns.h"
 
 /*────────────────────────────────────────────────────────────────────────────*/
@@ -18,9 +17,7 @@ protected:
 
     struct NODE {
         int                       state =  0;
-        bool                      chck  =  1;
         agent_t                   agent;
-        poll_t                    poll ;
         function_t<void,socket_t> func ;
     };  ptr_t<NODE> obj;
     
@@ -41,10 +38,6 @@ public: udp_t() noexcept : obj( new NODE() ) {}
     
     void     close() const noexcept { if( obj->state<0 ){ return; } obj->state=-1; onClose.emit(); }
     bool is_closed() const noexcept { return obj == nullptr ? 1 : obj->state < 0; }
-    
-    /*─······································································─*/
-
-    void poll( bool chck ) const noexcept { obj->chck = chck; }
     
     /*─······································································─*/
 

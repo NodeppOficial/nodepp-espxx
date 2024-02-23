@@ -103,7 +103,7 @@ namespace nodepp { namespace _file_ {
         ulong size = 0;
         
     template< class T > gnEmit( T* str, const string_t& msg ){
-    gnStart c=0; y=0; str->flush(); str->del_borrow();
+    gnStart c=0; y=0; str->flush(); //str->del_borrow();
 
         if( !str->is_available() || msg.empty() ){ str->close(); coEnd; } 
         if(  str->get_borrow().empty() ){ str->set_borrow( msg ); }
@@ -221,217 +221,8 @@ namespace nodepp { namespace _stream_ {
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-#if !defined(GENERATOR_ZLIB) && defined(NODEPP_ZLIB) && defined(NODEPP_GENERATOR)
-    #define  GENERATOR_ZLIB 
-namespace nodepp { namespace _zlib_ {
-
-    GENERATOR( inflate ){ public:
-    
-        ptr_t<z_stream> str = new z_stream;
-        int x=0; ulong size; string_t dout;
-        _file_::write _write;
-        _file_::read  _read;
-        
-
-        template< class T, class V, class U >
-        gnEmit( const T& inp, const V& out, U cb ){
-        gnStart inp.onPipe.emit(); out.onPipe.emit();
-
-            str->zfree    = Z_NULL;
-            str->zalloc   = Z_NULL;
-            str->opaque   = Z_NULL;
-            str->next_in  = Z_NULL;
-            str->avail_in = Z_NULL;
-
-            if( cb( &str ) != Z_OK ){ 
-                string_t message = "Failed to initialize zlib for compression.";
-                process::error( inp.onError, message );
-                process::error( inp.onError, message ); coEnd;
-            }
-
-            while( inp.is_available() && out.is_available() ){
-            while( _read(&inp)==1 ){ coNext; }
-               if( _read.c <= 0 )  { break; }
-
-                str->avail_in = _read.y.size();
-                str->avail_out= inp.get_buffer_size();
-                str->next_in  = (Bytef*)_read.y.data();
-                str->next_out = (Bytef*)inp.get_buffer_data(); 
-                            x = ::inflate( &str, Z_FINISH );
-
-                if(( size=inp.get_buffer_size()-str->avail_out )>0){
-                    dout = string_t( inp.get_buffer_data(), size );
-                    inp.onData.emit(dout); 
-                    while( _write(&out,dout)==1 ){ coNext; } continue;
-                }
-                
-                if( x==Z_STREAM_END ) { break; } elif( x < 0 ){ 
-                    string_t message = string::format("ZLIB: %s",str->msg);
-                    process::error( inp.onError, message );
-                    process::error( out.onError, message ); break;
-                }
-            
-            }   inflateEnd( &str ); 
-            
-            if( out.is_busy() ) out.close(); 
-            if( inp.is_busy() ) inp.close(); 
-        
-        gnStop
-        }
-
-        template< class T, class U >
-        gnEmit( const T& inp, U cb ){
-        gnStart inp.onPipe.emit();
-
-            str->zfree    = Z_NULL;
-            str->zalloc   = Z_NULL;
-            str->opaque   = Z_NULL;
-            str->next_in  = Z_NULL;
-            str->avail_in = Z_NULL;
-
-            if( cb( &str ) != Z_OK ){ 
-                string_t message = "Failed to initialize zlib for compression.";
-                process::error( inp.onError, message ); coEnd;
-            }
-
-            while( inp.is_available() ){
-            while( _read(&inp)==1 ){ coNext; }
-               if( _read.c <= 0 )  { break; }
-
-                str->avail_in = _read.y.size();
-                str->avail_out= inp.get_buffer_size();
-                str->next_in  = (Bytef*)_read.y.data();
-                str->next_out = (Bytef*)inp.get_buffer_data(); 
-                            x = ::inflate( &str, Z_PARTIAL_FLUSH );
-
-                if(( size=inp.get_buffer_size()-str->avail_out )>0){
-                    dout = string_t( inp.get_buffer_data(), size );
-                    inp.onData.emit(dout); continue;
-                }
-
-                if( x==Z_STREAM_END ) { break; } elif( x < 0 ){ 
-                    string_t message = string::format("ZLIB: %s",str->msg);
-                    process::error( inp.onError, message ); break;
-                } 
-
-            }   inflateEnd( &str );
-            
-            if( inp.is_busy() ) inp.close(); 
-            
-        gnStop
-        }
-
-    };
-    
-    /*─······································································─*/
-
-    GENERATOR( deflate ){ public:
-    
-        ptr_t<z_stream> str = new z_stream;
-        int x=0; ulong size; string_t dout;
-        _file_::write _write;
-        _file_::read  _read;
-        
-
-        template< class T, class V, class U >
-        gnEmit( const T& inp, const V& out, U cb ){
-        gnStart inp.onPipe.emit(); out.onPipe.emit();
-
-            str->zfree    = Z_NULL;
-            str->zalloc   = Z_NULL;
-            str->opaque   = Z_NULL;
-            str->next_in  = Z_NULL;
-            str->avail_in = Z_NULL;
-
-            if( cb( &str ) != Z_OK ){ 
-                string_t message = "Failed to initialize zlib for compression.";
-                process::error( inp.onError, message );
-                process::error( inp.onError, message ); coEnd;
-            }
-
-            while( inp.is_available() && out.is_available() ){
-            while( _read(&inp)==1 ){ coNext; }
-               if( _read.c <= 0 )  { break; }
-
-                str->avail_in = _read.y.size();
-                str->avail_out= inp.get_buffer_size();
-                str->next_in  = (Bytef*)_read.y.data();
-                str->next_out = (Bytef*)inp.get_buffer_data(); 
-                            x = ::deflate( &str, Z_PARTIAL_FLUSH );
-
-                if(( size=inp.get_buffer_size()-str->avail_out )>0){
-                    dout = string_t( inp.get_buffer_data(), size );
-                    inp.onData.emit(dout); 
-                    while( _write(&out,dout)==1 ){ coNext; } continue;
-                }
-
-                if( x==Z_STREAM_END ) { break; } elif( x < 0 ){ 
-                    string_t message = string::format("ZLIB: %s",str->msg);
-                    process::error( inp.onError, message );
-                    process::error( out.onError, message ); break;
-                }
-            
-            }   deflateEnd( &str ); 
-            
-            if( out.is_busy() ) out.close(); 
-            if( inp.is_busy() ) inp.close(); 
-            
-        gnStop
-        }
-
-        template< class T, class U >
-        gnEmit( const T& inp, U cb ){
-        gnStart inp.onPipe.emit();
-
-            str->zfree    = Z_NULL;
-            str->zalloc   = Z_NULL;
-            str->opaque   = Z_NULL;
-            str->next_in  = Z_NULL;
-            str->avail_in = Z_NULL;
-
-            if( cb( &str ) != Z_OK ){ 
-                string_t message = "Failed to initialize zlib for compression.";
-                process::error( inp.onError, message ); coEnd;
-            }
-
-            while( inp.is_available() ){
-            while( _read(&inp)==1 ){ coNext; }
-               if( _read.c <= 0 )  { break; }
-
-                str->avail_in = _read.y.size();
-                str->avail_out= inp.get_buffer_size();
-                str->next_in  = (Bytef*)_read.y.data();
-                str->next_out = (Bytef*)inp.get_buffer_data(); 
-                            x = ::deflate( &str, Z_PARTIAL_FLUSH );
-
-                if(( size=inp.get_buffer_size()-str->avail_out )>0){
-                    dout = string_t( inp.get_buffer_data(), size );
-                    inp.onData.emit(dout); continue;
-                }
-                
-                if( x==Z_STREAM_END ) { break; } elif( x < 0 ){ 
-                    string_t message = string::format("ZLIB: %s",str->msg);
-                    process::error( inp.onError, message ); break;
-                } 
-
-            }   deflateEnd( &str ); 
-            
-            if( inp.is_busy() ) inp.close(); 
-            
-        gnStop
-        }
-
-    };
-
-}}
-#undef NODEPP_GENERATOR
-#endif
-
-/*────────────────────────────────────────────────────────────────────────────*/
-
 #if !defined(GENERATOR_WS) && defined(NODEPP_WS) && defined(NODEPP_GENERATOR)
     #define  GENERATOR_WS
-    #include "crypto.h"
 namespace nodepp { 
 
     bool WSServer( http_t cli ) {
@@ -494,7 +285,6 @@ namespace nodepp {
 
 #if !defined(GENERATOR_WSS) && defined(NODEPP_WSS) && defined(NODEPP_GENERATOR)
     #define  GENERATOR_WSS
-    #include "crypto.h"
 namespace nodepp {
     
     bool WSSServer( https_t cli ) {
@@ -570,14 +360,16 @@ namespace nodepp {
         ulong LEN = 0; //64b
     };
 
-    ulong write_ws_frame( char* bf, const ulong& sx ){
+    template< class T >
+    ulong write_ws_frame( char* bf, const ulong& sx, T* str ){
         static ulong len;
 
         if( bf    == nullptr    ){ return   0; }
         if( bf[0] == (char)0x81 ){ return len; }
 
-        string_t y = string_t( bf, sx ); uint idx = 0; 
+        string_t y = string_t( bf, sx ); uint idx = 0;
         auto   byt = encoder::bytes::get( y.size() ); 
+        ulong  lst = 0;
 
         bf[idx] = (char) 0b10000001; idx++;
         bf[idx] = (char) 0b00000000; // 0b10000000 MASKED
@@ -597,28 +389,29 @@ namespace nodepp {
         }
 
         for( ulong x = 0; x<y.size(); x++ ){
-             bf[idx] = y[x]; idx++;
-        }    
+             bf[idx] = y[x]; idx++; lst=x;
+        }    str->set_borrow( y.slice(lst) );
         
         len = idx; return idx; 
     }
 
-    ulong read_ws_frame( char* bf, const ulong& /*unused*/ ){
+    template< class T >
+    ulong read_ws_frame( char* bf, const ulong& /*unused*/, T* /*unused*/ ){
 
         if( bf == nullptr ){ return  0; }
 
-        uint   idx = 0; ws_frame_t st;
-        string_t y = string::to_bin( bf[idx] ); idx++;
+        uint idx = 0; ws_frame_t st;
+        auto y = array_t<bool>(encoder::bin::get( bf[0] )); 
 
-        st.FIN = y.splice(0,1) == "1";
+        st.FIN = y.splice(0,1)[0] == 1; idx++;
 
-        for( auto x : y.splice(0,3) ) st.RSV = st.RSV<<1 | (x=='1');
-        for( auto x : y.splice(0,4) ) st.OPC = st.OPC<<1 | (x=='1');
+        for( auto x : y.splice(0,3) ) st.RSV = st.RSV<<1 | x;
+        for( auto x : y.splice(0,4) ) st.OPC = st.OPC<<1 | x;
 
-        y = string::to_bin( bf[idx] ); idx++; 
-        st.MSK = y.splice(0,1) == "1"; 
+        y = array_t<bool>(encoder::bin::get( bf[1] ));
+        st.MSK = y.splice(0,1)[0] == 1; idx++; 
 
-        for( auto x : y.splice(0,7) ) st.LEN = st.LEN<<1 | (x=='1');
+        for( auto x : y.splice(0,7) ) st.LEN = st.LEN<<1 | x;
         if ( st.LEN == 126 ){ st.LEN = 0;
             st.LEN = st.LEN << 8 | (uchar) bf[idx]; idx++;
             st.LEN = st.LEN << 8 | (uchar) bf[idx]; idx++;
