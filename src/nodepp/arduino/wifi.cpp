@@ -62,8 +62,7 @@ public:
         if( esp_wifi_start() != ESP_OK )
           { process::error("can't connect to ssid"); }
 
-        wifi_ap_record_t ap_info; 
-        while( true ) {
+        wifi_ap_record_t ap_info; forEver() {
             if( esp_wifi_connect() == ESP_OK ) {
                 esp_wifi_scan_get_ap_record(&ap_info);
             if( ap_info.rssi > -50 ){ break; }
