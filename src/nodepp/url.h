@@ -1,3 +1,14 @@
+/*
+ * Copyright 2023 The Nodepp Project Authors. All Rights Reserved.
+ *
+ * Licensed under the MIT (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://github.com/NodeppOficial/nodepp/blob/main/LICENSE
+ */
+
+/*────────────────────────────────────────────────────────────────────────────*/
+
 #ifndef NODEPP_URL
 #define NODEPP_URL
 
@@ -39,7 +50,7 @@ struct url_t {
 namespace url {
 
     bool is_valid( const string_t& URL ){
-        return regex::test( URL, "^\\w+://([^.]+)", "i" );
+        return regex::test( URL, "^\\w+://([^.]+)", 1 );
     }
     
     /*─······································································─*/
@@ -54,13 +65,10 @@ namespace url {
     /*─······································································─*/
 
     string_t auth( const string_t& URL ){ string_t null; 
-        regex_t _a("//[^@/]+@"), _b("@"), _c("[@/]+"), _d(":");
+        regex_t _a("//\\w+:\\w+@");
         if( !is_valid(URL) || !_a.test( URL ) ) 
           { return null; } null = _a.match( URL );
-        if( !_b.test( null ) ){ return ""; }
-        if( !_d.test( null ) ){ return ""; }
-        if( null.size() <= 4 ){ return ""; }
-            return _c.replace_all( null, "" );
+            return null.slice( 2, -1 );
     }
 
     string_t user( const string_t& URL ){ string_t null; 
@@ -93,20 +101,19 @@ namespace url {
     }
 
     string_t path( const string_t& URL ){
-        string_t null; regex_t _a("/+[^?/#]+");
-        if( !is_valid(URL) || !_a.test(URL) ){ return ""; }
-	    auto vec = _a.match_all( URL );
-	if( vec.size() <= 1 ) return "/";
-	    vec.shift(); return vec.join("");
+        string_t null; regex_t _a("/[^/?#]+");
+        if ( !is_valid(URL) || !_a.test(URL) ){ return "/"; }
+             null = _a.match_all( URL ).slice(1).join("");
+	         return null.empty() ? "/" : null;
     }
 
-    string_t host( const string_t& URL ){ string_t null; 
-        regex_t _a("/\\w[^/#?]+"), _c("/"), _d("[^@]+@|@");
-        if( !is_valid(URL) ){ return null; }
-            null = _a.match( URL );
-        if( _d.test( null ) )
-          { null = _d.replace_all( null, "" ); }
-            return _c.replace_all( null, "" );
+    string_t host( const string_t& URL ){ 
+        regex_t _a("(/|@)[^/#?]+");
+        if(!is_valid(URL) ){ return nullptr; }
+            auto data = _a.match( URL ).slice(1);
+        if( regex::test( data, "@" ) )
+             return regex::replace( data, "[^@]+@", "" );
+        else return data;
     }
 
     string_t hostname( const string_t& URL ){ 
@@ -117,18 +124,22 @@ namespace url {
     
     /*─······································································─*/
 
-    int port( const string_t& URL ){ regex_t _a(":\\d+$"), _b("[^\\d]+");
-        string_t _host = host( URL ); string_t _prot = protocol( URL );
-        if( _a.test( _host ) ){
-            string_t _port = _a.match( _host );
-                   _port = _b.replace_all( _port, "" );
-                   return string::to_uint( _port );
-        } else {
+    uint port( const string_t& URL ){ 
+
+        string_t _prot = protocol( URL );
+        string_t _host = host( URL ); 
+        regex_t  _a(":\\d+$");
+
+        if( !_host.empty() && _a.test( _host ) ){
+            return string::to_uint( _a.match( _host ).slice(1) );
+        } elif( !_prot.empty() ) {
             for( ulong i=0; i<prot.size(); i++ ) {
-                regex_t _a(prot[i]); if( _a.test( _prot ) )
-                { return prts[i]; }
+             if( _prot.find( prot[i] ) != nullptr )
+               { return prts[i]; }
             }
-        }   return 8000;
+        }   
+        
+        return 8000;
     }
     
     /*─······································································─*/

@@ -1,3 +1,14 @@
+/*
+ * Copyright 2023 The Nodepp Project Authors. All Rights Reserved.
+ *
+ * Licensed under the MIT (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://github.com/NodeppOficial/nodepp/blob/main/LICENSE
+ */
+
+/*────────────────────────────────────────────────────────────────────────────*/
+
 #ifndef NODEPP_SEMAPHORE
 #define NODEPP_SEMAPHORE
 
@@ -10,13 +21,12 @@
 namespace nodepp { class semaphore_t {
 public:
 
-    virtual ~semaphore_t() noexcept {
-        if( obj->addr == (void*)this ){ release(); }
-        if( mutex.count() > 1 )       { return;    }
-        //force_close();
-    };
-
     semaphore_t() : obj( new NODE() ){}
+
+    virtual ~semaphore_t() noexcept {
+        if( obj->addr == (void*)this )
+          { release(); }
+    };
     
     /*─······································································─*/
 

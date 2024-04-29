@@ -1,3 +1,14 @@
+/*
+ * Copyright 2023 The Nodepp Project Authors. All Rights Reserved.
+ *
+ * Licensed under the MIT (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://github.com/NodeppOficial/nodepp/blob/main/LICENSE
+ */
+
+/*────────────────────────────────────────────────────────────────────────────*/
+
 #ifndef NODEPP_TYPE
 #define NODEPP_TYPE
 
@@ -253,6 +264,17 @@ namespace nodepp { namespace type {
     };
 
     /*─······································································─*/
+
+    template <typename T>
+    struct is_member_pointer : false_type {};
+
+    template <typename T, typename U>
+    struct is_member_pointer<T U::*> : true_type {};
+
+    template <typename T, typename U>
+    struct is_member_pointer<T (U::*)()> : true_type {};
+
+    /*─······································································─*/
     
     template< int V, typename... Ts > struct is_greater_than {
         static constexpr bool value = sizeof...(Ts) > V;
@@ -347,11 +369,6 @@ namespace nodepp { namespace type {
 
     };
 
-    /*─······································································─*/
-
-    template< class T, class V > T* cast( V* object ){ return ( T* )( object ); }
-    template< class T, class V > T  cast( V  object ){ return ( T  )( object ); }
-
 }}
 
 /*────────────────────────────────────────────────────────────────────────────*/
@@ -361,8 +378,15 @@ namespace nodepp { namespace type {
 /*────────────────────────────────────────────────────────────────────────────*/
 
 namespace nodepp { namespace type {
-    template<class T> ptr_t<T> bind( T* object ){ return new T( *object ); }
-    template<class T> ptr_t<T> bind( T  object ){ return new T(  object ); }
+
+    template< class T, class V > T* cast( ptr_t<V>& object ){ return ( T* )( object ); }
+    template< class T, class V > T* cast(       V*  object ){ return ( T* )( object ); }
+    template< class T, class V > T  cast(       V   object ){ return ( T  )( object ); }
+
+    template<class T> ptr_t<T>      bind( ptr_t<T>& object ){ return    object.copy(); }
+    template<class T> ptr_t<T>      bind(       T*  object ){ return new T( *object ); }
+    template<class T> ptr_t<T>      bind(       T   object ){ return new T(  object ); }
+
 }}
 
 /*────────────────────────────────────────────────────────────────────────────*/

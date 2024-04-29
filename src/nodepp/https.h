@@ -1,3 +1,14 @@
+/*
+ * Copyright 2023 The Nodepp Project Authors. All Rights Reserved.
+ *
+ * Licensed under the MIT (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://github.com/NodeppOficial/nodepp/blob/main/LICENSE
+ */
+
+/*────────────────────────────────────────────────────────────────────────────*/
+
 #ifndef NODEPP_HTTPS
 #define NODEPP_HTTPS
 
@@ -8,7 +19,7 @@
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-namespace nodepp { class https_t : public ssocket_t, public NODEPP_GENERATOR_BASE {
+namespace nodepp { class https_t : public ssocket_t, public generator_t {
 protected:
 
     bool      has_header=0;
@@ -45,10 +56,12 @@ public:
         int idx;
     gnStart
 
-        if( !is_available() )                              coEnd;
+        if( !is_available() )                        coEnd;
         base = read_line(); protocol = "HTTPS";
-        if( !regex::test( base,"HTTP/\\d\\.\\d" ) )        coEnd; 
-        init = regex::match_all( base, "[^\\s\t\r\n ]+" ); coNext;
+        if( !regex::test( base,"HTTP/\\d\\.\\d" ) )  coEnd; 
+
+        init = regex::split( base, "\\s+" );        coNext;
+        if( init.size() < 4 )                        coEnd;
         
         if( !regex::test( init[1], "^\\d+" ) ) {
             auto idx = init[1].index_of([]( char x ){ return x=='?'; });
@@ -67,10 +80,9 @@ public:
             version = init[0]; status = string::to_int(init[1]);
         }   coNext;
 
-        do {  line = read_line(); idx = line.index_of([]( char x ){ return x==':'; });
+        do { line = read_line(); idx = line.index_of([]( char x ){ return x==':'; });
             if( idx < 0 ){ break; } a = line.slice( 0,idx ).to_capital_case();
-                                    b = line.slice( idx+2 ); 
-                                    headers[a] = b;
+                                    b = line.slice( idx+2, -2 ); headers[a]=b;
         } while ( true ); coSet(0); return 0;
 
     gnStop

@@ -1,3 +1,14 @@
+/*
+ * Copyright 2023 The Nodepp Project Authors. All Rights Reserved.
+ *
+ * Licensed under the MIT (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://github.com/NodeppOficial/nodepp/blob/main/LICENSE
+ */
+
+/*────────────────────────────────────────────────────────────────────────────*/
+
 #ifndef NODEPP_QUEUE
 #define NODEPP_QUEUE
 
@@ -14,8 +25,7 @@ protected:
         explicit operator V(){ return data; }
     };
 
-    NODE*       act = nullptr;
-    ptr_t<NODE> queue;
+    ptr_t<NODE> queue; NODE* act = nullptr;
 
     ptr_t<ulong> get_slice_range( long x, long y ) const noexcept {
         
@@ -84,34 +94,6 @@ public: queue_t() noexcept {}
     
     /*─······································································─*/
 
-    template< ulong N >
-    queue_t& operator=( const V (&value) [N] ) noexcept {
-        NODE* n = &queue; for( ulong i=0; i<N; i++ ){ 
-            if( n == nullptr ){ 
-                queue = new NODE( value[i] ); 
-                    n = &queue; 
-            } else {
-                n->next = new NODE( value[i] );
-                n->next->prev = n; n = n->next;
-            }
-        }   return *this;
-    }
-
-    template < ulong N >
-    queue_t( const V (&value)[N] ) noexcept { 
-        NODE* n = &queue; for( ulong i=0; i<N; i++ ){ 
-            if( n == nullptr ){ 
-                queue = new NODE( value[i] ); 
-                    n = &queue; 
-            } else {
-                n->next = new NODE( value[i] );
-                n->next->prev = n; n = n->next;
-            }
-        }
-    }
-    
-    /*─······································································─*/
-
     template < class T >
     queue_t( const T* value, ulong N ) noexcept { 
         if( value == nullptr || N == 0 ){ return; }
@@ -130,7 +112,7 @@ public: queue_t() noexcept {}
 
     bool empty() const noexcept { return queue == nullptr ? 1 : size() <= 0; }
 
-    ulong size() const noexcept { 
+    ulong size() const noexcept {
            if( queue == nullptr ){ return 0; } NODE* n = &queue; ulong i = 1; 
         while( n->next != nullptr ){ n = n->next; i++; } return i;
     }
@@ -145,8 +127,6 @@ public: queue_t() noexcept {}
     }
     
     /*─······································································─*/
-
-    NODE* operator&( void ) const noexcept { return act==nullptr ? first() : act; }
 
     NODE* operator[]( ulong idx ) noexcept { return this->get( idx ); }
     
@@ -199,30 +179,12 @@ public: queue_t() noexcept {}
         }   return 1;
     }
 
-    void map( function_t<void,V> func ) const noexcept {
+    void map( function_t<void,V&> func ) const noexcept {
         if( empty() ){ return; } NODE* n = first(); 
         while( n!=nullptr ){ func( n->data ); n = n->next; }
     }
 
     /*─······································································─*/
-
-#ifndef ARDUINO
-
-    NODE* max() const noexcept { 
-        if( empty() ){ return nullptr; } 
-        NODE* n = first(), p = first(); while( n!=nullptr ){ 
-            if( p->data < n->data ){ p = n; } n = n->next;
-        }   return p;
-    }
-
-    NODE* min() const noexcept { 
-        if( empty() ){ return nullptr; } 
-        NODE* n = first(), p = first(); while( n!=nullptr ){ 
-            if( p->data > n->data ){ p = n; } n = n->next;
-        }   return p;
-    }
-
-#endif
     
     bool is_item( NODE* item ) const noexcept {
         auto n = first(); while( n != nullptr && item != nullptr ){

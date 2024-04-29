@@ -36,8 +36,7 @@ public: worker_t() noexcept : obj( new NODE ) {}
 
     virtual ~worker_t() noexcept {
         if( obj.count() > 1 ){ return; } 
-        if( obj->state == 0 ){ return; } 
-    //      force_close();
+        if( obj->state == 0 ){ return; } // free();
     }
     
     /*─······································································─*/

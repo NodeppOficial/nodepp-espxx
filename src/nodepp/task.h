@@ -1,31 +1,47 @@
+/*
+ * Copyright 2023 The Nodepp Project Authors. All Rights Reserved.
+ *
+ * Licensed under the MIT (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://github.com/NodeppOficial/nodepp/blob/main/LICENSE
+ */
+
+/*────────────────────────────────────────────────────────────────────────────*/
+
 #ifndef NODEPP_TASK
 #define NODEPP_TASK
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-namespace nodepp { namespace process { event_t<> onNext;
+namespace nodepp { namespace process {
 
 namespace task {
 
     queue_t<function_t<int>> queue;
 
-    bool empty(){ return queue.empty(); }
+    void clear(){ queue.clear(); }
 
     ulong size(){ return queue.size(); }
 
-    void clear(){ queue.clear(); }
+    bool empty(){ return queue.empty(); }
+
+    void clear( void* address ){ *((bool*)( address )) = 0; }
 
     template< class T, class... V >
-    void add( T cb, const V&... arg ){ 
-        ptr_t<type::pair<bool,T>> pb = new type::pair<bool,T>({ 0, cb });
+    void* add( T cb, const V&... arg ){ 
+        ptr_t<T>    clb = new T( cb );
+        ptr_t<bool> blk = new bool(0);
+        ptr_t<bool> out = new bool(1);
         queue.push([=](){ 
-            if(pb->first){ return 1; } pb->first = 1;
-            int rs = (pb->second)(arg...);
-            pb->first = 0; return rs; 
-        });
-    }
+            if( *out==0 ){ return -1; }
+            if( *blk==1 ){ return  1; } *blk = 1;
+            int rs = (*clb) (arg...);   *blk = 0; 
+            return *out==0 ? -1 : rs; 
+        }); return (void*) &out;
+    } 
 
-    void next(){ onNext.emit();
+    void next(){
         if( queue.empty() ){ return; }
           auto x = queue.get();
           int  y = x->data();
@@ -35,29 +51,34 @@ namespace task {
 
 }
 
-/*────────────────────────────────────────────────────────────────────────────*/
+    /*─······································································─*/
 
 namespace loop {
 
     queue_t<function_t<int>> queue;
 
-    bool empty(){ return queue.empty(); }
+    void clear(){ queue.clear(); }
 
     ulong size(){ return queue.size(); }
 
-    void clear(){ queue.clear(); }
+    bool empty(){ return queue.empty(); }
+
+    void clear( void* address ){ *((bool*)( address )) = 0; }
 
     template< class T, class... V >
-    void add( T cb, const V&... arg ){ 
-        ptr_t<type::pair<bool,T>> pb = new type::pair<bool,T>({ 0, cb });
+    void* add( T cb, const V&... arg ){ 
+        ptr_t<T>    clb = new T( cb );
+        ptr_t<bool> blk = new bool(0);
+        ptr_t<bool> out = new bool(1);
         queue.push([=](){ 
-            if(pb->first){ return 1; } pb->first = 1;
-            int rs = (pb->second)(arg...);
-            pb->first = 0; return rs; 
-        });
-    }
+            if( *out==0 ){ return -1; }
+            if( *blk==1 ){ return  1; } *blk = 1;
+            int rs = (*clb) (arg...);   *blk = 0; 
+            return *out==0 ? -1 : rs; 
+        }); return (void*) &out;
+    } 
 
-    void next(){ onNext.emit();
+    void next(){
         if( queue.empty() ){ return; }
           auto x = queue.get();
           int  y = x->data();
@@ -67,29 +88,34 @@ namespace loop {
 
 }
 
-/*────────────────────────────────────────────────────────────────────────────*/
+    /*─······································································─*/
 
 namespace poll {
 
     queue_t<function_t<int>> queue;
 
-    bool empty(){ return queue.empty(); }
+    void clear(){ queue.clear(); }
 
     ulong size(){ return queue.size(); }
 
-    void clear(){ queue.clear(); }
+    bool empty(){ return queue.empty(); }
+
+    void clear( void* address ){ *((bool*)( address )) = 0; }
 
     template< class T, class... V >
-    void add( T cb, const V&... arg ){ 
-        ptr_t<type::pair<bool,T>> pb = new type::pair<bool,T>({ 0, cb });
+    void* add( T cb, const V&... arg ){ 
+        ptr_t<T>    clb = new T( cb );
+        ptr_t<bool> blk = new bool(0);
+        ptr_t<bool> out = new bool(1);
         queue.push([=](){ 
-            if(pb->first){ return 1; } pb->first = 1;
-            int rs = (pb->second)(arg...);
-            pb->first = 0; return rs; 
-        });
-    }
+            if( *out==0 ){ return -1; }
+            if( *blk==1 ){ return  1; } *blk = 1;
+            int rs = (*clb) (arg...);   *blk = 0; 
+            return *out==0 ? -1 : rs; 
+        }); return (void*) &out;
+    } 
 
-    void next(){ onNext.emit();
+    void next(){
         if( queue.empty() ){ return; }
           auto x = queue.get();
           int  y = x->data();
@@ -98,6 +124,76 @@ namespace poll {
     }
 
 }
+
+}}
+
+/*────────────────────────────────────────────────────────────────────────────*/
+
+namespace nodepp { namespace process {
+    
+    int threads = 0; 
+    
+    /*─······································································─*/
+
+    void clear(){ 
+        process::task::clear();
+        process::poll::clear(); 
+        process::loop::clear(); 
+        process::threads = 0; 
+    }
+
+    void clear( void* address ){
+         *((bool*)address) = 0;
+    }
+    
+    /*─······································································─*/
+
+    bool empty(){ return ( 
+        process::task::empty() && 
+        process::poll::empty() && 
+        process::loop::empty() && 
+        process::threads < 1 
+    );}
+
+    /*─······································································─*/
+
+    ulong size(){ 
+        return process::poll::size() + 
+               process::task::size() + 
+               process::loop::size() + 
+               process::threads      ; 
+    }
+
+    /*─······································································─*/
+
+    template< class... T >
+    void* add( const T&... args ){ return process::loop::add( args... ); }
+
+    /*─······································································─*/
+
+    int next(){ 
+        static int x = 0;
+    coStart
+
+        if( process::size() <= 0 ){ process::delay( TIMEOUT ); coGoto(0); }
+
+        while( x != 0 ){
+        if( !process::task::empty() ){ process::task::next(); coNext; x--; }
+        if( !process::loop::empty() ){ process::loop::next(); coNext; x--; }
+        if( !process::poll::empty() ){ process::poll::next(); coNext; x--; }   
+        }   
+            
+        x = process::size(); // process::delay( TIMEOUT );
+
+    coStop
+    }
+
+    /*─······································································─*/
+
+    template< class T, class... V > 
+    void await( T cb, const V&... args ){
+         while( cb( args... ) != -1 ){ next(); }
+    }
 
 }}
 

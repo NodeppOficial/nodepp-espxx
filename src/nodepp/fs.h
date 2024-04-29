@@ -9,15 +9,17 @@
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-#ifndef NODEPP_SLEEP
-#define NODEPP_SLEEP
+#ifndef NODEPP_FS
+#define NODEPP_FS
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
 #if _KERNEL == NODEPP_KERNEL_ARDUINO
-    #include "arduino/sleep.cpp"
+    #include "path.h"
+    #include "stream.h"
+    #include "arduino/fs.cpp"
 #else
-    #error "This OS Does not support sleep.h"
+    #error "This OS Does not support fs.h"
 #endif
 
 /*────────────────────────────────────────────────────────────────────────────*/

@@ -1,7 +1,15 @@
-#pragma once
+/*
+ * Copyright 2023 The Nodepp Project Authors. All Rights Reserved.
+ *
+ * Licensed under the MIT (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://github.com/NodeppOficial/nodepp/blob/main/LICENSE
+ */
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
+#pragma once
 #include <pthread.h>
 
 /*────────────────────────────────────────────────────────────────────────────*/
@@ -42,12 +50,12 @@ public:
         if( mutex->state== 0 )          { return;   }
         if( mutex->addr == (void*)this ){ unlock(); }
         if( mutex.count() > 1 )         { return;   }
-            force_close();
+            free();
     }
     
     /*─······································································─*/
 
-    void force_close() const noexcept {
+    void free() const noexcept {
          if( mutex->state == 0 ){ return; }
              mutex->state == 0;
          pthread_mutex_destroy(&mutex->fd);

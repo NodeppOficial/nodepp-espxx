@@ -1,3 +1,14 @@
+/*
+ * Copyright 2023 The Nodepp Project Authors. All Rights Reserved.
+ *
+ * Licensed under the MIT (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://github.com/NodeppOficial/nodepp/blob/main/LICENSE
+ */
+
+/*────────────────────────────────────────────────────────────────────────────*/
+
 #ifndef NODEPP_HTTP
 #define NODEPP_HTTP
 
@@ -19,6 +30,7 @@ namespace nodepp { using header_t = map_t< string_t, string_t >; namespace HTTP_
         case 101:  return "Switching Protocols";                                break;
         case 102:  return "Processing";                                         break;
         case 103:  return "Early Hints";                                        break;
+        
         case 200:  return "OK";                                                 break;
         case 201:  return "Created";                                            break;
         case 202:  return "Accepted";                                           break;
@@ -29,6 +41,7 @@ namespace nodepp { using header_t = map_t< string_t, string_t >; namespace HTTP_
         case 207:  return "Multi-Status";                                       break;
         case 208:  return "Already Reported";                                   break;
         case 226:  return "IM Used";                                            break;
+
         case 300:  return "Multiple Choices";                                   break;
         case 301:  return "Moved Permanently";                                  break;
         case 302:  return "Found";                                              break;
@@ -37,6 +50,7 @@ namespace nodepp { using header_t = map_t< string_t, string_t >; namespace HTTP_
         case 305:  return "Use Proxy";                                          break;
         case 307:  return "Temporary Redirect";                                 break;
         case 308:  return "Permanent Redirect";                                 break;
+
         case 400:  return "Bad Request";                                        break;
         case 401:  return "Unauthorized";                                       break;
         case 402:  return "Payment Required";                                   break;
@@ -66,6 +80,7 @@ namespace nodepp { using header_t = map_t< string_t, string_t >; namespace HTTP_
         case 429:  return "Too Many Requests";                                  break;
         case 431:  return "Request Header Fields Too Large";                    break;
         case 451:  return "Unavailable For Legal Reasons";                      break;
+
         case 500:  return "Internal Server Error";                              break;
         case 501:  return "Not Implemented";                                    break;
         case 502:  return "Bad Gateway";                                        break;
@@ -104,7 +119,7 @@ namespace nodepp { struct fetch_t {
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-namespace nodepp { class http_t : public socket_t, public NODEPP_GENERATOR_BASE {
+namespace nodepp { class http_t : public socket_t, public generator_t {
 protected:
 
     bool      has_header=0;
@@ -141,11 +156,14 @@ public:
         int idx;
     gnStart
 
-        if( !is_available() )                              coEnd;
+        if( !is_available() )                         coEnd;
+
         base = read_line(); protocol = "HTTP";
-        if( !regex::test( base,"HTTP/\\d\\.\\d" ) )        coEnd; 
-        init = regex::match_all( base, "[^\\s\t\r\n ]+" ); coNext;
-        
+        if( !regex::test( base,"HTTP/\\d\\.\\d" ) )   coEnd; 
+
+        init = regex::split( base, "\\s+" );         coNext;
+        if( init.size() < 4 )                         coEnd;
+
         if( !regex::test( init[1], "^\\d+" ) ) {
             auto idx = init[1].index_of([]( char x ){ return x=='?'; });
               
@@ -164,9 +182,8 @@ public:
         }   coNext;
 
         do {  line = read_line(); idx = line.index_of([]( char x ){ return x==':'; });
-            if( idx < 0 ){ break; } a = line.slice( 0,idx ).to_capital_case();                        
-                                    b = line.slice( idx+2 ); 
-                                    headers[a] = b;
+            if( idx < 0 ){ break; } a = line.slice( 0,idx ).to_capital_case();
+                                    b = line.slice( idx+2, -2 ); headers[a]=b;
         } while ( true ); coSet(0); return 0;
 
     gnStop

@@ -9,52 +9,46 @@
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-#ifndef NODEPP_DEBUG
-#define NODEPP_DEBUG
+#ifndef NODEPP_POPEN
+#define NODEPP_POPEN
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-namespace nodepp { class debug_t {     
-protected: 
+#if _KERNEL == NODEPP_KERNEL_ARDUINO
+    #include "fs.h"
+    #include "initializer.h"
+    #include "arduino/popen.cpp"
+#else
+    #error "This OS Does not support popen.h"
+#endif
 
-    struct NODE { 
-        void * ev = nullptr;
-        string_t msg;
-    };  ptr_t<NODE> obj;
+/*────────────────────────────────────────────────────────────────────────────*/
 
-public:
-
-    virtual ~debug_t() noexcept { 
-        process::onSIGERR.off(obj->ev);
-        if ( obj.count() == 2 ){ 
-	    console::log( obj->msg, "closed" );  
-        }
-    }
-    
-    /*─······································································─*/
-
-    debug_t( const string_t& msg ) noexcept : obj(new NODE()) {
-        obj->msg = msg; 
-        auto inp = type::bind( this );
-        obj->ev  = process::onSIGERR([=](){ inp->error(); });
-	               console::log( obj->msg, "open" );
-    }
-    
-    debug_t() noexcept : obj(new NODE()) {
-        auto inp = type::bind( this );
-        obj->msg = "something went wrong";
-        obj->ev  = process::onSIGERR([=](){ inp->error(); });
-	               console::log( obj->msg, "open" );
-    }
-    
-    /*─······································································─*/
+namespace nodepp { namespace popen {
 
     template< class... T >
-    void log( const T&... args ) const noexcept { console::log( "--", args... ); }
+    popen_t async( const string_t& path, const initializer_t<string_t>& args ){ 
+    popen_t pid  ( path, args ); pid.pipe(); return pid;
+    }
 
-    void error() const noexcept { console::error( obj->msg ); }
+    popen_t async( const string_t& path ){
+     return async( path, { path } );
+    }
     
-};}
+    /*─······································································─*/
+    
+    template< class... T >
+    string_t await( const string_t& path, const initializer_t<string_t>& args ){
+        string_t result; auto fp = popen_t( path, args ); _stream_::pipe _read;
+        fp.onData([&]( string_t chunk ){ result += chunk; });
+        process::await( _read, fp.std_output() ); return result;
+    }
+
+    string_t await( const string_t& path ){
+      return await( path, { path } );
+    }
+
+}}
 
 /*────────────────────────────────────────────────────────────────────────────*/
 

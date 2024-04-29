@@ -9,52 +9,43 @@
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-#ifndef NODEPP_DEBUG
-#define NODEPP_DEBUG
+#ifndef NODEPP_CLUSTER
+#define NODEPP_CLUSTER
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-namespace nodepp { class debug_t {     
-protected: 
+#if   _KERNEL == NODEPP_KERNEL_WINDOWS
+    #include "fs.h"
+    #include "initializer.h"
+    #include "windows/cluster.cpp"
+#elif _KERNEL == NODEPP_KERNEL_POSIX
+    #include "fs.h"
+    #include "initializer.h"
+    #include "posix/cluster.cpp"
+#else
+    #error "This OS does not support cluster.h"
+#endif
 
-    struct NODE { 
-        void * ev = nullptr;
-        string_t msg;
-    };  ptr_t<NODE> obj;
+/*────────────────────────────────────────────────────────────────────────────*/
 
-public:
+namespace nodepp { namespace cluster {
 
-    virtual ~debug_t() noexcept { 
-        process::onSIGERR.off(obj->ev);
-        if ( obj.count() == 2 ){ 
-	    console::log( obj->msg, "closed" );  
-        }
+    cluster_t add( const initializer_t<string_t>& args ){ 
+    cluster_t pid( args ); pid.pipe(); return pid;
     }
-    
+
+    cluster_t add(){ cluster_t pid; 
+        if( process::is_parent() )
+          { pid.pipe(); } return pid;
+    }
+
     /*─······································································─*/
 
-    debug_t( const string_t& msg ) noexcept : obj(new NODE()) {
-        obj->msg = msg; 
-        auto inp = type::bind( this );
-        obj->ev  = process::onSIGERR([=](){ inp->error(); });
-	               console::log( obj->msg, "open" );
-    }
-    
-    debug_t() noexcept : obj(new NODE()) {
-        auto inp = type::bind( this );
-        obj->msg = "something went wrong";
-        obj->ev  = process::onSIGERR([=](){ inp->error(); });
-	               console::log( obj->msg, "open" );
-    }
-    
-    /*─······································································─*/
+    bool  is_child(){ return !process::env::get("CHILD").empty(); }
 
-    template< class... T >
-    void log( const T&... args ) const noexcept { console::log( "--", args... ); }
+    bool is_parent(){ return  process::env::get("CHILD").empty(); }
 
-    void error() const noexcept { console::error( obj->msg ); }
-    
-};}
+}}
 
 /*────────────────────────────────────────────────────────────────────────────*/
 

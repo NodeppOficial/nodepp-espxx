@@ -1,3 +1,14 @@
+/*
+ * Copyright 2023 The Nodepp Project Authors. All Rights Reserved.
+ *
+ * Licensed under the MIT (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://github.com/NodeppOficial/nodepp/blob/main/LICENSE
+ */
+
+/*────────────────────────────────────────────────────────────────────────────*/
+
 #ifndef NODEPP_STRING
 #define NODEPP_STRING
 
@@ -23,19 +34,23 @@ namespace string {
     
     /*─······································································─*/
 
-    ptr_t<char> buffer( ulong n ){ auto b = ptr_t<char>( n+1, '\0' ); return b; }
+    ptr_t<char> buffer( ulong n ){ 
+        if ( n == 0 ){ return nullptr; }
+        auto b = ptr_t<char>( n+1,'\0' ); return b; 
+    }
 
     ptr_t<char> buffer( const char* c, ulong n ){
-        auto b = ptr_t<char>( n+1, '\0' );
-        while( n-->0 ){ b[n] = c[n]; } return b; 
+        if ( c == nullptr ){ return nullptr; }
+        if ( n == 0 ){ return nullptr; }
+        auto b = ptr_t<char>( n+1,'\0' );
+        memcpy( &b, c, n ); return b; 
     }
 
     ptr_t<char> buffer( ulong n, const char& c ){
-        auto b = ptr_t<char>( n+1, '\0' );
-        while( n-->0 ){ b[n] = c; } return b; 
+        if ( n == 0 ){ return nullptr; }
+        auto b = ptr_t<char>( n+1,'\0' );
+        memset( &b, n, c ); return b; 
     }
-
-    ptr_t<char> null(){ return nullptr; }
     
     /*─······································································─*/
 
@@ -90,23 +105,23 @@ protected:
     
 public:
 
-    string_t() noexcept { buffer = ""; }
+    string_t() noexcept { buffer = nullptr; }
 
-    string_t( const char* argc ) noexcept { ulong n=0;
-        if( argc == nullptr || (n=strlen(argc))==0 ){ 
-            buffer = ""; return;
-        }   buffer = string::buffer( argc, n );
+    string_t( const char* argc ) noexcept {
+        if( argc == nullptr ){ 
+            buffer = nullptr; return;
+        }   buffer = string::buffer( argc, strlen(argc) );
     }
 
     string_t( const ulong& n, const char& c ) noexcept {
-        if( n==0 ){ 
-            buffer = ""; return;
+        if( n == 0 ){ 
+            buffer = nullptr; return;
         }   buffer = string::buffer( n, c );
     }
 
     string_t( const char* argc, const ulong& n ) noexcept {
         if( argc == nullptr || n == 0 ){ 
-            buffer = ""; return;
+            buffer = nullptr; return;
         }   buffer = string::buffer( argc, n );
     }
     
@@ -141,9 +156,6 @@ public:
     bool operator>=( const string_t& oth ) const noexcept { return compare( oth ) >= 0; }
     bool operator<=( const string_t& oth ) const noexcept { return compare( oth ) <= 0; }
     bool operator< ( const string_t& oth ) const noexcept { return compare( oth ) ==-1; }
-    
-    /*─······································································─*/
-
     bool operator==( const string_t& oth ) const noexcept { return compare( oth ) == 0; }
     bool operator!=( const string_t& oth ) const noexcept { return compare( oth ) != 0; }
     
@@ -178,7 +190,7 @@ public:
         for( auto& x : *this ){ if(!func(x) ) return 0; } return 1;
     }
 
-    void map( function_t<void,char> func ) const noexcept { 
+    void map( function_t<void,char&> func ) const noexcept { 
         for( auto& x : *this ) func(x);
     }
     
@@ -411,8 +423,8 @@ public:
     /*─······································································─*/
 
     explicit operator char* (void) const noexcept { return empty() ? (char*)"" : &buffer; }
-          char*   get() const noexcept { return empty() ? (char*) "" : &buffer; }
           char*  data() const noexcept { return empty() ? (char*) "" : &buffer; }
+          char*   get() const noexcept { return empty() ? (char*) "" : &buffer; }
     const char* c_str() const noexcept { return empty() ?         "" : &buffer; }
     explicit operator bool(void) const noexcept { return empty(); }
     ptr_t<char>&  ptr() noexcept { return buffer; }
@@ -503,21 +515,6 @@ namespace string {
     template< class... T >
     int parse( const string_t& data, const string_t& str, const T&... args ){
         return sscanf( (char*)data, (char*)str, args... ); 
-    }
-    
-    /*─······································································─*/
-    
-    template< class T >
-    string_t to_hex( T num ){
-        char buffer[32]; auto x = sprintf( buffer, "%x", num ); 
-        return { buffer, (ulong)x };
-    }
-
-    template< class T >
-    string_t to_bin( T num ){
-        char buffer[sizeof(T)*8]; uint n=sizeof(T)*8-1; do {
-             buffer[n] = num & 1 ? '1' : '0'; num >>= 1;
-        }    while( n-->0 ); return { buffer, sizeof(T)*8 };
     }
     
     /*─······································································─*/

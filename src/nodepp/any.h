@@ -1,3 +1,14 @@
+/*
+ * Copyright 2023 The Nodepp Project Authors. All Rights Reserved.
+ *
+ * Licensed under the MIT (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://github.com/NodeppOficial/nodepp/blob/main/LICENSE
+ */
+
+/*────────────────────────────────────────────────────────────────────────────*/
+
 #ifndef NODEPP_ANY
 #define NODEPP_ANY
 
@@ -15,9 +26,9 @@ public: any_t() noexcept {};
     
     /*─······································································─*/
 
-    ulong count() const noexcept { return any_ptr.count(); }
-
-    bool empty()  const noexcept { return any_ptr.null(); }
+    bool has_value() const noexcept { return any_ptr.has_value(); }
+    ulong    count() const noexcept { return any_ptr.count(); }
+    bool     empty() const noexcept { return any_ptr.null(); }
     
     /*─······································································─*/
 
@@ -31,11 +42,17 @@ public: any_t() noexcept {};
     template< class T >
     void set( const T& f ) noexcept { any_ptr = new any_impl<T>(f); }
 
+    void free() const noexcept { any_ptr.free(); }
+
     template< class T >
-    T get() const noexcept { 
-        T any; if( any_ptr == nullptr ) return T();
+    T get() const { 
+        T any; if( !has_value() )
+            process::error("any is null");
         any_ptr->get((void*)&any); return any; 
     }
+
+    template< class T >
+    T as() const { return get<T>(); }
     
     /*─······································································─*/
 

@@ -1,6 +1,15 @@
-#pragma once
+/*
+ * Copyright 2023 The Nodepp Project Authors. All Rights Reserved.
+ *
+ * Licensed under the MIT (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://github.com/NodeppOficial/nodepp/blob/main/LICENSE
+ */
 
 /*────────────────────────────────────────────────────────────────────────────*/
+
+#pragma once
 
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -11,7 +20,7 @@
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-namespace nodepp { namespace socket {
+namespace nodepp { namespace _socket_ {
 
     void start_device(){ static bool sockets=false; 
         if( sockets == false ){
@@ -73,7 +82,7 @@ protected:
         );
     }
 
-public: socket_t() noexcept { socket::start_device(); }
+public: socket_t() noexcept { _socket_::start_device(); }
 
     int SOCK  = SOCK_STREAM;
     int AF    = AF_INET; 
@@ -266,19 +275,19 @@ public: socket_t() noexcept { socket::start_device(); }
     
     virtual ~socket_t() noexcept {
         if( obj.count() > 1 || obj->fd < 3 ){ return; } 
-        if( obj->state == -2 ){ return; } force_close();
+        if( obj->state == -2 ){ return; } free();
     }
     
     /*─······································································─*/
 
-    socket_t( int fd, ulong _size=CHUNK_SIZE ){ socket::start_device();
+    socket_t( int fd, ulong _size=CHUNK_SIZE ){ _socket_::start_device();
         if( fd < 0 )  process::error("Such Socket has an Invalid fd");
         obj->fd = fd; set_nonbloking_mode(); set_buffer_size(_size); 
     }
 
     /*─······································································─*/
 
-    virtual void force_close() const noexcept {
+    virtual void free() const noexcept {
         if( obj->state == -3 && obj.count() > 1 ){ resume(); return; }
         if( obj->state == -2 ){ return; } obj->state = -2;
         ::shutdown(obj->fd,SHUT_RDWR); ::close( obj->fd ); 
@@ -288,11 +297,11 @@ public: socket_t() noexcept { socket::start_device(); }
     /*─······································································─*/
 
     virtual int socket( const string_t& host, int port ) noexcept { 
-        if( host.empty() ){ process::error(onError,"dns coudn't found ip"); return -1; }
-            skt->addrlen = sizeof( skt->server_addr ); socket::start_device();
+        if( host.empty() ){ _EERROR(onError,"dns coudn't found ip"); return -1; }
+            skt->addrlen = sizeof( skt->server_addr ); _socket_::start_device();
 
         if((obj->fd=::socket( AF, SOCK, PROT )) <= 0 )
-          { process::error(onError,"can't initializate socket fd"); return -1; } 
+          { _EERROR(onError,"can't initializate socket fd"); return -1; } 
           
         set_buffer_size( CHUNK_SIZE );
         set_nonbloking_mode();

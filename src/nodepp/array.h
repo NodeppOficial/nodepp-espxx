@@ -1,3 +1,14 @@
+/*
+ * Copyright 2023 The Nodepp Project Authors. All Rights Reserved.
+ *
+ * Licensed under the MIT (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://github.com/NodeppOficial/nodepp/blob/main/LICENSE
+ */
+
+/*────────────────────────────────────────────────────────────────────────────*/
+
 #ifndef NODEPP_ARRAY
 #define NODEPP_ARRAY
 
@@ -38,14 +49,6 @@ protected:
     }
 
 public: array_t() noexcept {};
-    
-    /*─······································································─*/
-
-    array_t( T* value ) noexcept {
-        if( value == nullptr ){ return; } ulong n = 0; 
-        while( ( !value[n] || value[n] != '\0' ) && n < sizeof(value) ){ n++; }
-        buffer = ptr_t<T>( value, n );
-    }
 
     array_t( const ptr_t<T>& argc ) noexcept { buffer = argc; }
 
@@ -53,7 +56,7 @@ public: array_t() noexcept {};
         if( n == 0 ){ return; } buffer = ptr_t<T>( n, c );
     }
 
-    array_t( T* value, const ulong& n ) noexcept { 
+    array_t( T* value, const ulong& n=0 ) noexcept { 
         if( value == nullptr || n == 0 ){ return; } 
         buffer = ptr_t<T>( value, n );
     }
@@ -72,22 +75,6 @@ public: array_t() noexcept {};
         ulong s = 0; buffer = ptr_t<T>( N ); 
         for( auto x=begin(); x!=end(); x++ )
            { (*x) = (T)value[s]; s++; } 
-    }
-    
-    /*─······································································─*/
-
-    template< ulong N >
-    array_t& operator=( const T (&value) [N] ) noexcept {
-        ulong s = 0; buffer = ptr_t<T>( N ); 
-        for( auto x=begin(); x!=end(); x++ )
-           { (*x) = value[s]; s++; } return *this;
-    }
-
-    template < ulong N > 
-    array_t( const T (&value)[N] ) noexcept { 
-        ulong s = 0; buffer = ptr_t<T>( N ); 
-        for( auto x=begin(); x!=end(); x++ )
-           { (*x) = value[s]; s++; } 
     }
     
     /*─······································································─*/
@@ -145,7 +132,7 @@ public: array_t() noexcept {};
         for( auto& x : *this ){ if( func(x) ) return 0; } return 1;
     }
 
-    void map( function_t<void,T> func ) const noexcept { 
+    void map( function_t<void,T&> func ) const noexcept { 
         for( auto& x : *this ){ func(x); }
     }
     
@@ -167,22 +154,6 @@ public: array_t() noexcept {};
         return find( array_t( 1UL, data ), offset );
     }
 
-    /*─······································································─*/
-#ifndef ARDUINO
-
-    T max() const noexcept { T n = (*this)[0];
-        for( auto x=this->begin() + 1; x != this->end(); x++ ){
-            n = ::max( n, *x ); 
-        }   return n;
-    }
-
-    T min() const noexcept { T n = (*this)[0];
-        for( auto x=this->begin() + 1; x != this->end(); x++ ){
-            n = ::min( n, *x ); 
-        }   return n;
-    }
-    
-#endif
     /*─······································································─*/
 
     int compare( const array_t& oth ) const noexcept {
@@ -260,7 +231,7 @@ public: array_t() noexcept {};
         }
     }
 
-    void insert( ulong index, ulong N , T* value ) noexcept {
+    void insert( ulong index, ulong N, T* value ) noexcept {
 	    index = clamp( index, 0UL, size() );
         if( empty() ){ buffer = ptr_t<T> ( value, N ); } 
         else { ulong n=size() + N; auto n_buffer = ptr_t<T>(n); 
@@ -271,7 +242,7 @@ public: array_t() noexcept {};
         }
     }
 
-    void insert( ulong index, ulong N , const T& value ) noexcept {
+    void insert( ulong index, ulong N, const T& value ) noexcept {
 	    index = clamp( index, 0UL, size() );
         if( empty() ){ buffer = ptr_t<T> ( N, value ); } 
         else { ulong n=size() + N; auto n_buffer = ptr_t<T>(n); 

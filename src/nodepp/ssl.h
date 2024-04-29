@@ -1,10 +1,36 @@
+/*
+ * Copyright 2023 The Nodepp Project Authors. All Rights Reserved.
+ *
+ * Licensed under the MIT (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://github.com/NodeppOficial/nodepp/blob/main/LICENSE
+ */
+
+/*────────────────────────────────────────────────────────────────────────────*/
+
 #ifndef NODEPP_SSL
 #define NODEPP_SSL
 #define OPENSSL_API_COMPAT 0x10100000L
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-#include "esp_tls.h"
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+#include "fs.h"
+
+/*────────────────────────────────────────────────────────────────────────────*/
+
+namespace nodepp { namespace _ssl_ {
+
+    void start_device(){ static bool ssl=false; 
+        if( ssl == false ){
+            SSL_library_init();
+            OpenSSL_add_all_algorithms();
+        }   ssl = true;
+    }
+
+}}
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
@@ -21,7 +47,7 @@ protected:
         bool         srv = 0;
         bool         cnn = 0;
         ptr_t<onSNI> fnc;
-    };  ptr_t<NODE> obj;
+    };  ptr_t<NODE>  obj;
     
     /*─······································································─*/
 
@@ -69,8 +95,9 @@ protected:
     
     /*─······································································─*/
 
-    bool is_blocked( const int& c ) const noexcept { if( c < 0 ){
-        int error =  SSL_get_error( obj->ssl, c ); return ( 
+    bool is_blocked( const int& c ) const noexcept { if( c<=0 ){
+        int error =  SSL_get_error( obj->ssl, c ); 
+        ERR_clear_error(); return ( 
             error == SSL_ERROR_WANT_CLIENT_HELLO_CB ||
             error == SSL_ERROR_WANT_X509_LOOKUP     ||
             error == SSL_ERROR_WANT_ASYNC_JOB       ||
@@ -79,16 +106,6 @@ protected:
             error == SSL_ERROR_WANT_WRITE           ||
             error == SSL_ERROR_WANT_ASYNC           ||
             error == SSL_ERROR_WANT_READ
-        );
-    } return 0; }
-
-    /*─······································································─*/
-
-    bool is_error( const int& c ) const noexcept { if( c < 0 ){
-        int error =  SSL_get_error( obj->ssl, c ); return ( 
-            error == SSL_ERROR_ZERO_RETURN          ||
-            error == SSL_ERROR_SYSCALL              ||
-            error == SSL_ERROR_SSL
         );
     } return 0; }
     
@@ -110,54 +127,60 @@ protected:
         );
     }
 
-public: ssl_t() noexcept : obj( new NODE() ) {}
+public:
     
     virtual ~ssl_t() {
         if( obj.count() > 1 ) { return; }
-            force_close();
+            free();
     }
     
     /*─······································································─*/
 
-    ssl_t( const string_t& _key, const string_t& _cert, const string_t& _chain, onSNI* _func=nullptr ) : obj( new NODE() ) {
+    ssl_t( const string_t& _key, const string_t& _cert, const string_t& _chain, onSNI* _func=nullptr ) 
+    : obj( new NODE() ) { _ssl_::start_device();
         if( !fs::exists_file(_key) || !fs::exists_file(_cert) || !fs::exists_file(_chain) )
-            process::error("such key, cert or chain does not exist");
+             process::error("such key, cert or chain does not exist");
         if( _func != nullptr ) obj->fnc = new onSNI(*_func); 
              obj->key = _key;  obj->crt = _cert; obj->chn = _chain;
     }
 
-    ssl_t( const string_t& _key, const string_t& _cert, const string_t& _chain, onSNI _func ) : obj( new NODE() ) {
+    ssl_t( const string_t& _key, const string_t& _cert, const string_t& _chain, onSNI _func ) 
+    : obj( new NODE() ) { _ssl_::start_device();
           *this = ssl_t( _key, _cert, _chain, &_func );
     }
     
     /*─······································································─*/
 
-    ssl_t( const string_t& _key, const string_t& _cert, onSNI* _func=nullptr ) : obj( new NODE() ) {
+    ssl_t( const string_t& _key, const string_t& _cert, onSNI* _func=nullptr ) 
+    : obj( new NODE() ) { _ssl_::start_device();
         if( !fs::exists_file(_key) || !fs::exists_file(_cert) )
-            process::error("such key or cert does not exist");
+             process::error("such key or cert does not exist");
         if( _func != nullptr ) obj->fnc = new onSNI(*_func); 
              obj->key = _key;  obj->crt = _cert; 
     }
 
-    ssl_t( const string_t& _key, const string_t& _cert, onSNI _func ) : obj( new NODE() ) {
+    ssl_t( const string_t& _key, const string_t& _cert, onSNI _func ) 
+    : obj( new NODE() ) { _ssl_::start_device();
           *this = ssl_t( _key, _cert, &_func );
     }
 
     /*─······································································─*/
 
-    ssl_t( ssl_t xtc, int df ) : obj( new NODE() ) {
-        if( xtc.get_ctx() == nullptr ) process::error("ctx has no context");
-            obj->ctx = xtc.get_ctx(); obj->ssl = SSL_new(obj->ctx); 
-            obj->srv = xtc.is_server(); set_nonbloking_mode(); 
-            set_fd( df );
+    ssl_t( ssl_t& xtc, int df ) : obj( new NODE() ) { _ssl_::start_device();
+       if( xtc.get_ctx() == nullptr ) process::error("ctx has no context");
+           obj->ctx = xtc.get_ctx(); obj->ssl = SSL_new(obj->ctx); 
+           obj->srv = xtc.is_server(); set_nonbloking_mode(); 
+           set_fd( df );
     }
+     
+    ssl_t() noexcept : obj( new NODE() ) { _ssl_::start_device(); }
     
     /*─······································································─*/
 
-    int set_fd( int df ) noexcept { return obj->ssl==nullptr ? -1 : SSL_set_fd( obj->ssl, df ); }
+    int set_fd( int df ) noexcept { return obj->ssl==nullptr ? -1 : SSL_set_fd(  obj->ssl, df ); }
     int get_rfd()  const noexcept { return obj->ssl==nullptr ? -1 : SSL_get_rfd( obj->ssl ); }
     int get_wfd()  const noexcept { return obj->ssl==nullptr ? -1 : SSL_get_wfd( obj->ssl ); }
-    int  get_fd()  const noexcept { return obj->ssl==nullptr ? -1 : SSL_get_fd( obj->ssl ); }
+    int  get_fd()  const noexcept { return obj->ssl==nullptr ? -1 : SSL_get_fd(  obj->ssl ); }
     
     /*─······································································─*/
 
@@ -193,7 +216,7 @@ public: ssl_t() noexcept : obj( new NODE() ) {}
     /*─······································································─*/
 
     int _accept() const noexcept {
-        if( obj->ssl == nullptr ){ return -1; } 
+        if( obj->ssl == nullptr ){ return -1; }
         int c = SSL_accept( obj->ssl );
         if( c > 0 ){ obj->cnn = 1; }
         return is_blocked(c) ? -2 : c;
@@ -246,17 +269,17 @@ public: ssl_t() noexcept : obj( new NODE() ) {}
     
     /*─······································································─*/
 
-    void force_close() const noexcept {
+    void free() const noexcept {
         if( obj->ssl != nullptr ){
-        if( this->is_server() ){
-            SSL_shutdown(obj->ssl);
-        }   SSL_free(obj->ssl); return;
+        if( obj->cnn == 1 )
+            SSL_shutdown( obj->ssl );
+            SSL_clear(obj->ssl);
+            SSL_free(obj->ssl); 
+            return;
         } if ( obj->ctx != nullptr ){
             SSL_CTX_free(obj->ctx); return;
         }
     }
-
-    void free() const noexcept { force_close(); } 
     
 };}
 

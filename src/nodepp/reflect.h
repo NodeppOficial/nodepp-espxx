@@ -9,60 +9,67 @@
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-#ifndef NODEPP_EVENT
-#define NODEPP_EVENT
+#ifndef NODEPP_REFLECT
+#define NODEPP_REFLECT
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-namespace nodepp { template< class... A > class event_t { 
+namespace nodepp { class reflect_t {
 protected:
 
-    using NODE = function_t<int,A...>;
-    ptr_t<queue_t<NODE>> obj;
+    using T = type::pair< string_t, void* >;
 
-public: event_t() noexcept : obj( new queue_t<NODE>() ) {}
-    
+    struct NODE {
+        queue_t<T> fields;
+    };  ptr_t<NODE> obj;
+
+public:
+
     /*─······································································─*/
 
-    void* operator()( function_t<void,A...> func ) const noexcept { return on(func); }
-    
+    reflect_t () noexcept : obj( new NODE() ) {}
+
     /*─······································································─*/
 
-    bool  empty() const noexcept { return obj->empty(); }
-    ulong  size() const noexcept { return obj->size(); }
-    void  clear() const noexcept { obj->clear(); }
-    
-    /*─······································································─*/
-
-    void emit( const A&... args ) const noexcept {
-        auto x = obj->first(); while( x != nullptr ){
-        auto y = x->next; switch( x->data( args... ) ){
-            case  0: obj->erase(x);   break;
-            case -1: obj->erase(x);   break;
-            case  1: process::next(); break;
-        } x = y; }
-    }
-    
-    /*─······································································─*/
-
-    void off( void* address ) const noexcept { *((int*)address) = -1; }
-
-    void* once( function_t<void,A...> func ) const noexcept {
-        ptr_t<int> out = new int(0);
-        obj->push([=]( A... args ){
-            if( *out >= 0 ) func( args... );
-            return *out;
-        }); return &out;
+    template < typename V >
+    void reflect_field( const string_t& name, V& value ) const noexcept {
+         obj->fields.push({ name, type::cast<void>( &value ) });
     }
 
-    void* on( function_t<void,A...> func ) const noexcept {
-        ptr_t<int> out = new int(1);
-        obj->push([=]( A... args ){
-            if( *out >= 0 ) func( args... );
-            return *out;
-        }); return &out;
+    /*─······································································─*/
+
+    array_t<string_t> keys() const noexcept {
+        array_t<string_t> res ( obj->fields.size() );
+        ulong n=0; obj->fields.map([&]( T& data ){
+            res[n] = data.first; n++;
+        }); return res;
     }
-    
+
+    /*─······································································─*/
+
+    template< class U, class V >
+    void set_value( const string_t& fieldName, const V& value ) const {
+        auto x = obj->fields.first(); while( x != nullptr ) {
+        auto y = x->next;            
+            if( x->data.first == fieldName ){
+                auto data = type::cast<U>( x->data.second );
+                    *data = (U)(value); return;
+            }        x = y;
+        }   throw except_t( "Field not found [",fieldName,"]" );
+    }
+
+    /*─······································································─*/
+
+    template < class V, class = typename type::enable_if<!type::is_pointer<V>::value,V>::type >
+    V& get_field( const string_t& fieldName ) const {
+        auto x = obj->fields.first(); while( x != nullptr ) {
+        auto y = x->next;      
+            if( x->data.first == fieldName ){
+                 return *type::cast<V>( x->data.second );
+            }    x = y;
+        }   throw except_t( "Field not found [",fieldName,"]" );
+    }
+
 };}
 
 /*────────────────────────────────────────────────────────────────────────────*/

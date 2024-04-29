@@ -1,3 +1,14 @@
+/*
+ * Copyright 2023 The Nodepp Project Authors. All Rights Reserved.
+ *
+ * Licensed under the MIT (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://github.com/NodeppOficial/nodepp/blob/main/LICENSE
+ */
+
+/*────────────────────────────────────────────────────────────────────────────*/
+
 #define NODEPP_GENERATOR
 
 #if !defined(GENERATOR_TIMER) && defined(NODEPP_TIMER) && defined(NODEPP_GENERATOR)
@@ -7,22 +18,18 @@ namespace nodepp { namespace _timer_ {
     GENERATOR( timer ){ public:
 
         template< class V, class... T > 
-        gnEmit( V func, const ptr_t<int>& out, ulong time, ptr_t<ulong> stm, const T&... args ){
+        gnEmit( V func, ulong time, const T&... args ){
         gnStart
-            if(*out == 0 )                   coEnd;
-            if( process::millis() <= *stm )  coGoto(0);
-            if( func(args...)<0 )            coEnd;
-            *stm = process::millis() + time; coGoto(0); 
+            coDelay( time ); if( func(args...)<0 )
+            coEnd; coGoto(0); 
         gnStop
         }
 
         template< class V, class... T > 
-        gnEmit( V func, const ptr_t<int>& out, ulong* time, ptr_t<ulong> stm, const T&... args ){
+        gnEmit( V func, ulong* time, const T&... args ){
         gnStart
-            if(*out == 0 )                   coEnd;
-            if( process::millis() <= *stm )  coGoto(0);
-            if( func(args...)<0 )            coEnd;
-            *stm = process::millis() +*time; coGoto(0); 
+            coDelay( *time ); if( func(args...)<0 )
+            coEnd; coGoto(0); 
         gnStop
         }
 
@@ -33,22 +40,18 @@ namespace nodepp { namespace _timer_ {
     GENERATOR( utimer ){ public:
 
         template< class V, class... T > 
-        gnEmit( V func, const ptr_t<int>& out, ulong time, ptr_t<ulong> stm, const T&... args ){
+        gnEmit( V func, ulong time, const T&... args ){
         gnStart
-            if(*out == 0 )                   coEnd;
-            if( process::micros() <= *stm )  coGoto(0);
-            if( func(args...)<0 )            coEnd;
-            *stm = process::micros() + time; coGoto(0);
+            coUDelay( time ); if( func(args...)<0 )
+            coEnd; coGoto(0);
         gnStop
         }
 
         template< class V, class... T > 
-        gnEmit( V func, const ptr_t<int>& out, ulong* time, ptr_t<ulong> stm, const T&... args ){
+        gnEmit( V func, ulong* time, const T&... args ){
         gnStart
-            if(*out == 0 )                   coEnd;
-            if( process::micros() <= *stm )  coGoto(0);
-            if( func(args...)<0 )            coEnd;
-            *stm = process::micros() +*time; coGoto(0);
+            coUDelay( *time ); if( func(args...)<0 )
+            coEnd; coGoto(0);
         gnStop
         }
 
@@ -169,8 +172,7 @@ namespace nodepp { namespace _stream_ {
             while( _read(&inp)==1 ){ coNext; }
                if( _read.state<=0 ){ break;  }
                     inp.onData.emit( _read.data );
-            }
-            if(!inp.is_busy() ) inp.close(); 
+            }       inp.close(); 
         gnStop
         }
 
@@ -182,9 +184,7 @@ namespace nodepp { namespace _stream_ {
             while( _write(&out,_read.data)==1 ){ coNext; }
                if( _write.state<=0 )           { break;  }
                     inp.onData.emit( _read.data );
-            }
-            if(!inp.is_busy() ) inp.close(); 
-            if(!out.is_busy() ) out.close();
+            }       inp.close(); out.close();
         gnStop
         }
 
@@ -206,8 +206,7 @@ namespace nodepp { namespace _stream_ {
             while( _read(&inp)==1 ){ coNext; } 
                if( _read.state<=0 ){ break;  }
                    inp.onData.emit( _read.data );
-            }      
-            if(!inp.is_busy() ) inp.close(); 
+            }      inp.close(); 
         gnStop
         }
 
@@ -219,9 +218,7 @@ namespace nodepp { namespace _stream_ {
             while( _write(&out,_read.data)==1 ){ coNext; }
                if( _write.state<=0 )           { break;  }
                     inp.onData.emit( _read.data );
-            }       
-            if(!inp.is_busy() ) inp.close(); 
-            if(!out.is_busy() ) out.close();
+            }       inp.close(); out.close();
         gnStop
         }
 
@@ -286,10 +283,7 @@ namespace nodepp { namespace _zlib_ {
                     process::error( out.onError, message ); break;
                 }
             
-            }   inflateEnd( &str ); 
-            
-            if( out.is_busy() ) out.close(); 
-            if( inp.is_busy() ) inp.close(); 
+            }   inflateEnd( &str ); out.close(); inp.close(); 
         
         gnStop
         }
@@ -329,9 +323,7 @@ namespace nodepp { namespace _zlib_ {
                     process::error( inp.onError, message ); break;
                 } 
 
-            }   inflateEnd( &str );
-            
-            if( inp.is_busy() ) inp.close(); 
+            }   inflateEnd( &str ); inp.close(); 
             
         gnStop
         }
@@ -389,10 +381,7 @@ namespace nodepp { namespace _zlib_ {
                     process::error( out.onError, message ); break;
                 }
             
-            }   deflateEnd( &str ); 
-            
-            if( out.is_busy() ) out.close(); 
-            if( inp.is_busy() ) inp.close(); 
+            }   deflateEnd( &str ); out.close(); inp.close(); 
             
         gnStop
         }
@@ -432,9 +421,7 @@ namespace nodepp { namespace _zlib_ {
                     process::error( inp.onError, message ); break;
                 } 
 
-            }   deflateEnd( &str ); 
-            
-            if( inp.is_busy() ) inp.close(); 
+            }   deflateEnd( &str ); inp.close(); 
             
         gnStop
         }
@@ -460,7 +447,7 @@ namespace nodepp {
 
         if( !cli.headers["Sec-Websocket-Key"].empty() ){
 
-            string_t sec = regex::match(cli.headers["Sec-Websocket-Key"],"[^\\s\n ]+");
+            string_t sec = cli.headers["Sec-Websocket-Key"];
             string_t key = sec + SECRET;
 
                 auto sha = crypto::hash::SHA1();  sha.update(key);
@@ -485,13 +472,13 @@ namespace nodepp {
         auto cli = res.value();
 
         if( cli.status != 101 ){ 
-            process::error(cli.onError,string::format("Can't connect to WS Server -> status %d",cli.status)); 
+            _EERROR(cli.onError,string::format("Can't connect to WS Server -> status %d",cli.status)); 
             cli.close(); return cli; 
         }
 
         if(!cli.headers["Sec-Websocket-Accept"].empty() ){
 
-            string_t dta = regex::match(cli.headers["Sec-Websocket-Accept"],"[^\\s\n ]+");
+            string_t dta = cli.headers["Sec-Websocket-Accept"];
             string_t sec = key + SECRET;
 
                 auto sha = crypto::hash::SHA1();  sha.update(sec);
@@ -523,7 +510,7 @@ namespace nodepp {
 
         if( !cli.headers["Sec-Websocket-Key"].empty() ){
 
-            string_t sec = regex::match(cli.headers["Sec-Websocket-Key"],"[^\\s\n ]+");
+            string_t sec = cli.headers["Sec-Websocket-Key"];
             string_t key = sec + SECRET;
 
                 auto sha = crypto::hash::SHA1();  sha.update(key);
@@ -544,18 +531,17 @@ namespace nodepp {
     /*─······································································─*/
 
     template< class T > ssocket_t WSSClient( const T& fetch, const string_t& key ) {
-        
         auto res = fetch.await(); if( !res.has_value() ) process::error( res.error().what() );
         auto cli = res.value();
 
         if( cli.status != 101 ){ 
-            process::error(cli.onError,string::format("Can't connect to WS Server -> status %d",cli.status)); 
+            _EERROR(cli.onError,string::format("Can't connect to WS Server -> status %d",cli.status)); 
             cli.close(); return cli; 
         }
 
         if(!cli.headers["Sec-Websocket-Accept"].empty() ){
 
-            string_t dta = regex::match(cli.headers["Sec-Websocket-Accept"],"[^\\s\n ]+");
+            string_t dta = cli.headers["Sec-Websocket-Accept"];
             string_t sec = key + SECRET;
 
                 auto sha = crypto::hash::SHA1();  sha.update(sec);
@@ -588,78 +574,167 @@ namespace nodepp {
         ulong LEN = 0; //64b
     };
 
-    ulong write_ws_frame( char* bf, const ulong& sx ){
-        static ulong len;
+    /*─······································································─*/
 
-        if( bf    == nullptr    ){ return   0; }
-        if( bf[0] == (char)0x81 ){ return len; }
+    string_t write_ws_frame( char* /*unused*/, const ulong& sx ){
 
-        string_t y = string_t( bf, sx ); uint idx = 0;
-        auto   byt = encoder::bytes::get( y.size() ); 
-        ulong  lst = 0;
+        auto bfx = ptr_t<char>( 64, '\0' ); uint idx = 0;
+        auto byt = encoder::bytes::get( sx ); 
+        bfx[idx] = (char) 0b10000001; idx++ ;
 
-        bf[idx] = (char) 0b10000001; idx++;
-        bf[idx] = (char) 0b00000000;
-
-        if ( y.size() < 126 ){ 
-            bf[idx]|= (uchar) y.size(); idx++;
-        } elif ( y.size() <= 65536 ){ 
-            bf[idx]|= (uchar) 126; idx++;
-            bf[idx] = (uchar)(byt[byt.size()-2]); idx++;
-            bf[idx] = (uchar)(byt[byt.size()-1]); idx++;
-        } elif ( y.size() <= 4294967296 ){
-            bf[idx]|= (uchar) 127; idx++;
-            bf[idx] = (uchar)(byt[byt.size()-4]); idx++;
-            bf[idx] = (uchar)(byt[byt.size()-3]); idx++;
-            bf[idx] = (uchar)(byt[byt.size()-2]); idx++;
-            bf[idx] = (uchar)(byt[byt.size()-1]); idx++;
+        if ( sx < 126 ){ 
+            bfx[idx] = (uchar)(byt[byt.size()-1]); idx++;
+        } elif ( sx < 65536 ){ 
+            bfx[idx] = (uchar)( 126 ); idx++;
+            bfx[idx] = (uchar)(byt[byt.size()-2]); idx++;
+            bfx[idx] = (uchar)(byt[byt.size()-1]); idx++;
+        } else {
+            bfx[idx] = (uchar)( 127 ); idx++;
+            bfx[idx] = (uchar)(byt[byt.size()-4]); idx++;
+            bfx[idx] = (uchar)(byt[byt.size()-3]); idx++;
+            bfx[idx] = (uchar)(byt[byt.size()-2]); idx++;
+            bfx[idx] = (uchar)(byt[byt.size()-1]); idx++;
         }
 
-        for( ulong x = 0; x<y.size(); x++ ){
-             bf[idx] = y[x]; idx++; lst=x;
-        }
-        
-        len = idx; return idx; 
+        return { &bfx, idx }; 
     }
 
-    ulong read_ws_frame( char* bf, const ulong& /*unused*/ ){
-        if( bf == nullptr ){ return  0; }
-
-        uint idx = 0; ws_frame_t st;
-        auto y = array_t<bool>(encoder::bin::get( bf[0] )); 
+    int read_ws_frame( char* bf, ws_frame_t& st, int& _state_, ulong& size ){
+        array_t<bool> y;
+    gnStart st = ws_frame_t();
         
-        st.FIN = y.splice(0,1)[0] == 1; idx++;
+        y = array_t<bool>(encoder::bin::get( bf[0] )); 
 
+        st.FIN    =   y.splice(0,1)[0] == 1;
         for( auto x : y.splice(0,3) ) st.RSV = st.RSV<<1 | x;
         for( auto x : y.splice(0,4) ) st.OPC = st.OPC<<1 | x;
-
+        
         y = array_t<bool>(encoder::bin::get( bf[1] ));
-        st.MSK = y.splice(0,1)[0] == 1; idx++; 
 
+        st.MSK    =   y.splice(0,1)[0] == 1;
         for( auto x : y.splice(0,7) ) st.LEN = st.LEN<<1 | x;
-        if ( st.LEN == 126 ){ st.LEN = 0;
-            st.LEN = st.LEN << 8 | (uchar) bf[idx]; idx++;
-            st.LEN = st.LEN << 8 | (uchar) bf[idx]; idx++;
-        } elif ( st.LEN == 127 ) { st.LEN = 0;
-            st.LEN = st.LEN << 8 | (uchar) bf[idx]; idx++;
-            st.LEN = st.LEN << 8 | (uchar) bf[idx]; idx++;
-            st.LEN = st.LEN << 8 | (uchar) bf[idx]; idx++;
-            st.LEN = st.LEN << 8 | (uchar) bf[idx]; idx++;
+
+        if ( st.LEN  > 125 ){ 
+        if ( st.LEN == 126 ){ size = 2; st.LEN = 0; }
+        if ( st.LEN == 127 ){ size = 4; st.LEN = 0; } coNext;
+        for( ulong x=0; x < size; x++ )
+           { st.LEN = st.LEN << 8 | (uchar) bf[x]; }
         }
 
-        if ( st.MSK ) for( ulong x=0; x<4; x++ )
-           { st.KEY[x] = bf[idx]; idx++; }
+        if ( st.MSK == 1 ){ size=4; coNext; 
+        for( ulong x=0; x < size; x++ )
+           { st.KEY[x] = bf[x]; }
+        }
 
-        if ( st.MSK ) for ( ulong x=0; x<st.LEN; x++ )
-           { bf[x] = bf[idx] ^ st.KEY[x%4]; idx++; }
-        else for ( ulong x=0; x<st.LEN; x++ )
-           { bf[x] = bf[idx]; idx++; }
-
-        if ( st.OPC == 24 ){ return 0; } 
-        if ( st.OPC ==  8 ){ return 0; }
-
-        return st.LEN; 
+    gnStop
     }
 
-}
+    /*─······································································─*/
+
+namespace _ws_ {
+
+    GENERATOR( read ){ 
+    private:
+
+        ws_frame_t frame;
+        int        key=0;
+        ulong      len=0;
+        int        pos=0;
+
+    public:
+    
+        int        state = 1;
+        int        input = 0;
+        int        output=-2;
+        ulong      size  = 2;
+
+    gnEmit( char* bf, const ulong& sx ) { if( input<=0 ){ return -1; }
+    gnStart state=1; key=0; output=-2; len=0; size=2; pos=0;
+
+        while( read_ws_frame( bf, frame, pos, size )==1 )
+             { coSet(1); return -1; coYield(1); }
+        
+        /*------*/
+
+        if( frame.LEN ==  0 ){ size = 2; input = 0; coGoto(0); }
+        if( frame.OPC == 24 ){ state=-1; coEnd; }
+        if( frame.OPC ==  8 ){ state=-1; coEnd; } 
+            size = min( sx, frame.LEN - len );
+
+        /*------*/
+
+        coSet(2); return -1; coYield(2);
+
+        /*------*/
+
+        if ( len >= frame.LEN ){ size = 2; input = 0; coGoto(0); }
+
+        for( int x=0; x<input && frame.MSK ; x++ )
+           { bf[x] = bf[x] ^ frame.KEY[key]; key++; key%=4; }
+
+        if ( len <  frame.LEN ){ 
+             len += input; output = input; input = 0;
+             size = min( sx, frame.LEN - len );
+        if ( size == 0 ){ size = 2; input = 0; coGoto(0); }
+        }
+
+        /*------*/
+
+        coGoto(2);
+    gnStop
+    }};
+
+    GENERATOR( write ){
+    private:
+
+        string_t   brr;
+        string_t   hdr;
+        ulong      len;
+
+    public:
+    
+        int        state = 1;
+        int        input = 0;
+        int        output=-2;
+        ulong      size  = 0;
+
+    gnEmit( char* bf, const ulong& sx ) {
+    gnStart state=1; input=0; output=-2; len=0; size=sx;
+
+        brr = string_t( bf, size ); 
+        hdr = write_ws_frame( bf, size ); 
+
+        /*------*/
+
+        size=hdr.size(); len=0; output=0; input=0;
+        memmove( bf, hdr.data(), size ); 
+
+        /*------*/
+
+        len = 0; while( true ){ if( input > 0 ){
+            size-=input; output=input; len+=input;
+        if( len >= hdr.size() ){ break; }
+            memmove( bf, bf+input, size );
+        } coSet(1); return -1; coYield(1); }
+
+        /*------*/
+
+        size=brr.size(); len=0; output=0; input=0;
+        memmove( bf, brr.data(), size ); 
+
+        /*------*/
+
+        while( true ){ if( input > 0 ){
+            size-=input; output=input; len+=input;
+        if( len >= brr.size() ){ break; }
+            memmove( bf, bf+input, size );
+        } coSet(2); return -1; coYield(2); }
+
+        /*------*/
+
+        coGoto(0);
+    gnStop
+    }};
+
+}}
 #endif
