@@ -184,6 +184,12 @@ public:
     
     /*─······································································─*/
 
+    string_t get_key_path() noexcept { return obj->key; }
+    string_t get_crt_path() noexcept { return obj->crt; }
+    string_t get_ca_path()  noexcept { return obj->chn; }
+    
+    /*─······································································─*/
+
     void set_ctx_type( int type ) const noexcept { obj->tpy = type; }
     SSL_CTX*  get_ctx()           const noexcept { return obj->ctx; }
     SSL*      get_ssl()           const noexcept { return obj->ssl; }
