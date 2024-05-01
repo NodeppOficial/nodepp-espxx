@@ -395,21 +395,21 @@ public:
         for( ulong x=0; x<res.size(); x++ ){ auto y = buffer[x];
             if( string::is_alpha(y) && b==1 ){ res[x] = string::to_upper(y); b=0; continue; }
             if(!string::is_alpha(y) ){ b =1;}  res[x] = string::to_lower(y);
-        }   return &res;
+        }   return res;
     }
 
     string_t to_lower_case() const noexcept {
         if ( empty() ){ return nullptr; } ptr_t<char> res (size()+1,0);
         for( ulong x=0; x<res.size(); x++ ){
              res[x] = string::to_lower( buffer[x] );
-        }    return &res;
+        }    return res;
     }
 
     string_t to_upper_case() const noexcept { 
         if ( empty() ){ return nullptr; } ptr_t<char> res (size()+1,0);
         for( ulong x=0; x<res.size(); x++ ){
              res[x] = string::to_upper( buffer[x] );
-        }    return &res;
+        }    return res;
     }
 
     string_t to_slugify() const noexcept { ulong z=0;

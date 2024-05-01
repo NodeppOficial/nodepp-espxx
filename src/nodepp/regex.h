@@ -83,11 +83,12 @@ protected:
         goto CHCK; MORE: pos[1]++;
 
         CHCK:
+            auto _str_ = obj->i ? string::to_lower(str[pos[1]]) : str[pos[1]];
 
             if( (ulong) pos[1] >= str.size() ){ goto DONE; }
 
             if( (uchar) obj->_data[0] == '(' ){
-                regex_t   reg( obj->_data.slice(1) );
+                regex_t reg ( obj->_data.slice(1), obj->i );
                 auto idx = reg._search( str,pos[1] );
                   if ( idx == nullptr ){ goto DONE; }
                 else { pos[1]+= idx[1]-idx[0]-1;
@@ -99,9 +100,9 @@ protected:
                 auto    x = obj->_data[1] == '^' ? 2 : 1;
                 auto list = compile_range(obj->_data.slice(x));
 
-                  if ( x == 2 && list.none([&]( char itm ){ return str[pos[1]] == itm; }))
+                  if ( x == 2 && list.none([&]( char itm ){ return _str_ == itm; }))
                      { off[1]++; goto LESS; }
-                elif ( x == 1 && list.some([&]( char itm ){ return str[pos[1]] == itm; }))
+                elif ( x == 1 && list.some([&]( char itm ){ return _str_ == itm; }))
                      { off[1]++; goto LESS; } goto DONE;
 
             } elif( (uchar) obj->_data[0] == '\0' ) {
@@ -114,7 +115,7 @@ protected:
                   { off[1]++; goto LESS; } 
                               goto DONE;
             } else {
-                if( obj->_data[0] == str[pos[1]] )
+                if( obj->_data[0] == _str_ )
                   { off[1]++; goto LESS; } 
                               goto DONE;
             }
@@ -257,7 +258,6 @@ public: regex_t () noexcept : obj( new NODE() ) {}
 
     ptr_t<ulong> _search( string_t _str, int off=0 ) const {
             ptr_t<ulong> res ({ (ulong)off, (ulong)off });
-            if( obj->i ){ _str = _str.to_lower_case(); }
 
         for( auto &x: get_next_regex() ){
              ptr_t<int> pos ({ x, off, 0 }); res[0] = off; res[1] = off;
