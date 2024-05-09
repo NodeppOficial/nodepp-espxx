@@ -113,8 +113,9 @@ public: queue_t() noexcept {}
     bool empty() const noexcept { return queue == nullptr ? 1 : size() <= 0; }
 
     ulong size() const noexcept {
-           if( queue == nullptr ){ return 0; } NODE* n = &queue; ulong i = 1; 
-        while( n->next != nullptr ){ n = n->next; i++; } return i;
+           if( queue == nullptr ){ return 0; } 
+               auto n = &queue; ulong i = 0; 
+        while( n != nullptr ){ i++; n = n->next; } return i;
     }
     
     /*─······································································─*/
@@ -122,7 +123,8 @@ public: queue_t() noexcept {}
     ptr_t<V> data() const noexcept { 
         if( empty() ){ return nullptr; } ptr_t<V> res ( size() );
         ulong y=0; auto x = first(); while( x != nullptr ){ 
-            res[y] = x->data; x = x->next; y++;
+            res[y] = type::cast<V>( x->data ); 
+            x = x->next; y++;
         }   return res;
     }
     
@@ -187,15 +189,16 @@ public: queue_t() noexcept {}
     /*─······································································─*/
     
     bool is_item( NODE* item ) const noexcept {
-        auto n = first(); while( n != nullptr && item != nullptr ){
-             if( n == item ){ return 1; } n = n->next;
+        auto   n =  first(); 
+        while( n != nullptr && item != nullptr ){
+           if( n == item ){ return 1; } n = n->next;
         }    return 0;
     }
 
     /*─······································································─*/
 
     void unshift( const V& value ) noexcept { insert( first(), value ); }
-    void    push( const V& value ) noexcept { insert( last(), value ); }
+    void    push( const V& value ) noexcept { insert( nullptr, value ); }
     void                   shift() noexcept { erase( first() ); }
     void                     pop() noexcept { erase( last() ); }
     
@@ -222,27 +225,27 @@ public: queue_t() noexcept {}
     template< ulong N >
     void insert( ulong index, const V(&value)[N] ) noexcept {
 	    index = clamp( index, 0UL, size() - 1 );
-    	ulong i=index; for( ulong x=0; x<N; x++ ) {
-	        insert( x, value[x] );
-        }
+    	ulong i=index; for( ulong x=0; x<N; x++ ) 
+            { insert( x, value[x] ); }
     }
 
     void insert( NODE* index, const V& value ) noexcept {
-        if( empty() ){ queue = new NODE( value ); } 
-        if( is_item(index) ){ if( index == last() ) {
-                index->next = new NODE( value );
-                index->next->prev = index;
-            } elif ( index == first() ) {
+        if( empty() ){ queue = new NODE( value ); return; }
+        if( is_item(index) ) { 
+            if ( index != first() ) {
+                auto prev = index->prev; 
+                    index->prev = new NODE( value );
+                    index->prev->next = index;
+                    index->prev->prev = prev;
+                    prev->next = index->prev;
+            } else {
                 auto  prev  = *queue; queue = new NODE( value );
                 queue->next = new NODE( prev );
-                queue->next->prev = index;
-            } else {
-                auto prev = index->next;
-                index->next = new NODE( value ); 
-                index->next->prev = index;
-                prev->prev = index->next;
-                index->next->next = prev;
+                queue->next->prev = &queue;
             }
+        } else { auto prev = last();
+            prev->next = new NODE( value );
+            prev->next->prev = prev;
         }
     }
     

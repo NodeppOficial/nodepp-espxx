@@ -193,16 +193,16 @@ public: array_t() noexcept {};
     /*─······································································─*/
 
     array_t sort( function_t<bool,T,T> func ) const noexcept {
-        auto n_buffer = copy();
+        queue_t<T> n_buffer;
 
-        while(1){ int nn = 0; for( ulong i=0; i<size(); i++ ){
-            int act=i, prv = i-1; if( prv<0 ) continue;
-            char _act = n_buffer[act], _prv = n_buffer[prv];
-            if( func( _prv, _act ) == 0 ){ continue; } nn++;
-            n_buffer[act] = _prv; n_buffer[prv] = _act;
-        } if( nn == 0 ) break; }
-        
-        return n_buffer;
+        for( ulong i=0; i<size(); i++ ){ 
+            auto x = buffer[i]; auto n = n_buffer.first();
+            while( n!=nullptr ){ if( !func( x, n->data ) )
+                 { n = n->next; continue; } break;
+            }      n_buffer.insert( n, x );
+        }
+
+        return n_buffer.data();
     }
     
     /*─······································································─*/
