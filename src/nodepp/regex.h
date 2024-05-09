@@ -53,7 +53,7 @@ protected:
     ptr_t<int> get_rep( int pos, int npos ) const noexcept {
         ptr_t<int> rep ({ 0, 0 }); bool b=0; string_t num[2]; 
         
-        obj->regex.slice( pos, npos ).map([&]( char& data ){
+        obj->regex.slice( pos+1, npos ).map([&]( char& data ){
               if(!string::is_digit(data) ){ b =! b; }
             elif( string::is_digit(data) ){ num[b].push(data); }
         }); 
@@ -257,7 +257,7 @@ public: regex_t () noexcept : obj( new NODE() ) {}
     /*─······································································─*/
 
     ptr_t<ulong> _search( string_t _str, int off=0 ) const {
-            ptr_t<ulong> res ({ (ulong)off, (ulong)off });
+        ptr_t<ulong> res ({ (ulong)off, (ulong)off });
 
         for( auto &x: get_next_regex() ){
              ptr_t<int> pos ({ x, off, 0 }); res[0] = off; res[1] = off;
