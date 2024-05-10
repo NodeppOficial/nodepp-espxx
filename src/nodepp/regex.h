@@ -135,7 +135,8 @@ protected:
         DONE:
 
             if( (ulong) pos[1] >= str.size() ){
-                  if( pos[2] >=obj->_rep[0] ){ goto CLSE; } goto FAIL;
+                  if( pos[2] >=obj->_rep[0] ){ goto CLSE; } 
+                  goto FAIL;
             } elif( pos[2] == 0 && obj->_rep[0] == 0 ){
                   goto SKIP;
             } elif( obj->_rep[1] ==-1 ){

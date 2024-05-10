@@ -26,6 +26,7 @@ template< class T > T clamp( const T& val, const T& _min, const T& _max ){ retur
 
 #define coDelay(VALUE)  do { static auto tm = process::millis()+VALUE; while( process::millis() < tm ){ coNext; } tm = process::millis()+VALUE; break; } while (0)
 #define coUDelay(VALUE) do { static auto tm = process::micros()+VALUE; while( process::micros() < tm ){ coNext; } tm = process::micros()+VALUE; break; } while (0)
+#define coWait(VALUE)   do { while( !VALUE ){ coNext; } } while(0)
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
