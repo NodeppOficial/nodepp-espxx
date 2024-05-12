@@ -141,8 +141,11 @@ namespace nodepp { namespace process {
         process::loop::clear(); 
         process::threads = 0; 
     }
+    
+    /*─······································································─*/
 
     void clear( void* address ){
+         if( !address ){ return; }
          *((bool*)address) = 0;
     }
     
@@ -183,7 +186,7 @@ namespace nodepp { namespace process {
         if( !process::poll::empty() ){ process::poll::next(); coNext; x--; }   
         }   
             
-        x = process::size(); // process::delay( TIMEOUT );
+        x = process::size(); process::delay( TIMEOUT );
 
     coStop
     }

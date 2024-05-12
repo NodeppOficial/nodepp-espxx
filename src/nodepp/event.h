@@ -45,7 +45,10 @@ public: event_t() noexcept : obj( new queue_t<NODE>() ) {}
     
     /*─······································································─*/
 
-    void off( void* address ) const noexcept { *((int*)address) = -1; }
+    void off( void* address ) const noexcept { 
+        if( !address ){ return; }
+        *((int*)address) = -1; 
+    }
 
     void* once( function_t<void,A...> func ) const noexcept {
         ptr_t<int> out = new int(0);

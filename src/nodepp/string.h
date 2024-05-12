@@ -49,7 +49,7 @@ namespace string {
     ptr_t<char> buffer( ulong n, const char& c ){
         if ( n == 0 ){ return nullptr; }
         auto b = ptr_t<char>( n+1,'\0' );
-        memset( &b, n, c ); return b; 
+        memset( &b, c, n ); return b; 
     }
     
     /*─······································································─*/
@@ -453,6 +453,11 @@ namespace string {
         sscanf( (char*) buffer, "%d", &out ); return out;
     }
 
+    ldouble to_ldouble( const string_t& buffer ){
+        ldouble out=0.0f; if( buffer.empty() ){ return out; }
+        sscanf( (char*) buffer, "%llf", &out ); return out;
+    }
+
     double to_double( const string_t& buffer ){
         double out=0.0f; if( buffer.empty() ){ return out; }
         sscanf( (char*) buffer, "%lf", &out ); return out;
@@ -567,6 +572,11 @@ namespace string {
 
     string_t to_string( double num ){
         char buffer[32]; auto x = sprintf( buffer, "%lf", num );
+        return { buffer, (ulong)x };
+    }
+
+    string_t to_string( ldouble num ){
+        char buffer[32]; auto x = sprintf( buffer, "%llf", num );
         return { buffer, (ulong)x };
     }
 

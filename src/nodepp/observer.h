@@ -63,7 +63,8 @@ public:    observer_t() noexcept {}
     /*─······································································─*/
 
     void off( void* address ) const noexcept { 
-        if( address != nullptr ) *((int*)address) = -1; 
+        if( !address ){ return; }
+        *((int*)address) = -1; 
     }
 
     template< class F >

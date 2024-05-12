@@ -25,8 +25,11 @@ protected:
 public:
 
     virtual ~except_t() noexcept { 
+        if( obj == nullptr ){ return; }
    	    process::onSIGERR.off( obj->ev );
     }
+
+    except_t() noexcept = default;
 
     /*─······································································─*/
 
@@ -50,14 +53,6 @@ public:
 
     except_t( const string_t& msg ) noexcept : obj(new NODE()) {
         obj->msg = msg;
-        auto inp = type::bind( this ); 
-        obj->ev  = process::onSIGERR.once([=]( ... ){ inp->print(); });
-    }
-
-    /*─······································································─*/
-
-    except_t() noexcept : obj(new NODE()) {
-        obj->msg = "something went wrong";
         auto inp = type::bind( this ); 
         obj->ev  = process::onSIGERR.once([=]( ... ){ inp->print(); });
     }

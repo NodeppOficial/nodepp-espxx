@@ -64,7 +64,10 @@ namespace nodepp { namespace promise {
     
     /*─······································································─*/
 
-    void clear( void* address ){ *((int*)address) = 0; }
+    void clear( void* address ){ 
+        if( !address ){ return; }
+        *((int*)address) = 0; 
+    }
 
 }}
 
@@ -109,8 +112,8 @@ public:
     /*─······································································─*/
 
     void clear() const noexcept {
-        if( obj->addr == nullptr ){ return; }
-            promise::clear( obj->addr );
+        if( !obj->addr ){ return; }
+        promise::clear( obj->addr );
     }
 
 };}

@@ -50,10 +50,11 @@ namespace nodepp { namespace {
 
     template< class T >          struct obj_type_id<T*>      { static constexpr int value = 0xf000 | obj_type_id<T>::value; };
     template< class T, ulong N > struct obj_type_id<T[N]>    { static constexpr int value = 0xf100 | obj_type_id<T>::value; };
+    template< class T > struct obj_type_id<initializer_t<T>> { static constexpr int value = 0xf300 | obj_type_id<T>::value; };
+    template< class T > struct obj_type_id<ptr_t<T>>         { static constexpr int value = 0xf400 | obj_type_id<T>::value; };
+    template< class T > struct obj_type_id<queue_t<T>>       { static constexpr int value = 0xf600 | obj_type_id<T>::value; };
 
-    template< class T > struct obj_type_id<ptr_t<T>>         { static constexpr int value = 0xf200 | obj_type_id<T>::value; };
-    template< class T > struct obj_type_id<array_t<T>>       { static constexpr int value = 0xf300 | obj_type_id<T>::value; };
-    template< class T > struct obj_type_id<initializer_t<T>> { static constexpr int value = 0xf400 | obj_type_id<T>::value; };
+    template< class T > struct obj_type_id<array_t<T>>       { static constexpr int value = 0xf700 | obj_type_id<T>::value; };
 
 }}
 
@@ -75,10 +76,6 @@ protected:
 
 public:
 
-    object_t( const array_t<object_t>& arr ) noexcept : obj(new NODE()) { 
-        obj->mem = arr; obj->type = 21;
-    }
-
     template< ulong N > 
     object_t( const T (&arr) [N] ) noexcept : obj(new NODE()) { 
         QUEUE mem; for( ulong x=0; x<N; x++ )
@@ -88,11 +85,13 @@ public:
 
     template< class U > 
     object_t( const U& any ) noexcept : obj(new NODE()) { 
+        if( type::is_same<U,ARRAY>::value )
+          { obj->type = 21; goto BACK; }  
         obj->type = obj_type_id<U>::value;
-        obj->mem  = any;
+        BACK:; obj->mem  = any;
     }
     
-    object_t() noexcept : obj(new NODE()) {}
+    object_t() noexcept : obj( new NODE() ) {}
 
     /*─······································································─*/
 
