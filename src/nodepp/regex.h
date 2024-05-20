@@ -27,7 +27,7 @@ protected:
 
     array_t<int> get_next_regex( ulong _pos=0 ) const noexcept {
         array_t<int> result ({ 0 });
-        while( _pos >= 0 && _pos < obj->regex.size() ){
+        while( _pos < obj->regex.size() ){
             if( obj->regex[_pos] == '|' ){ result.push(_pos+1); }
             if( obj->regex[_pos] == '[' || 
                 obj->regex[_pos] == '{' || 
@@ -38,7 +38,7 @@ protected:
     }
 
     int get_next_key( ulong _pos ) const noexcept {
-        uchar k=0; while( _pos >= 0 && _pos < obj->regex.size() ){
+        uchar k=0; while( _pos < obj->regex.size() ){
 
             switch( obj->regex[_pos] ){
                 case '[': k += 1; break; case ']': k -= 1; break; 
@@ -262,7 +262,7 @@ public: regex_t () noexcept : obj( new NODE() ) {}
 
         for( auto &x: get_next_regex() ){
              ptr_t<int> pos ({ x, off, 0 }); res[0] = off; res[1] = off;
-             while( compile( _str, res, pos )==1 );
+             while( compile( _str, res, pos )==1 ){}
                 if( res[0] != res[1] ){ break; }
         }
 

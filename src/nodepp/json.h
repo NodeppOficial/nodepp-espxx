@@ -23,7 +23,7 @@ namespace nodepp { class json_t {
 protected:
 
     long get_next_sec( ulong _pos, const string_t& str ) const noexcept {
-        bool x=1; uchar k=0; while( _pos >= 0 && _pos < str.size() ){     
+        uchar k=0; while( _pos < str.size() ){     
             switch( str[_pos] ){
                 case ':': k += 6; break; case ',': k -= 6; break;
                 case '{': _pos =get_next_key( _pos, str ); break;
@@ -36,7 +36,7 @@ protected:
     }
 
     long get_next_key( ulong _pos, const string_t& str ) const noexcept {
-        bool x=1; uchar k=0; while( _pos >= 0 && _pos < str.size() ){   
+        bool x=1; uchar k=0; while( _pos < str.size() ){   
             switch( str[_pos] ){
                 case '[': k += 1; break; case ']': k -= 1; break; 
                 case '{': k += 3; break; case '}': k -= 3; break;

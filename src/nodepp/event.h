@@ -39,7 +39,7 @@ public: event_t() noexcept : obj( new queue_t<NODE>() ) {}
         auto y = x->next; switch( x->data( args... ) ){
             case  0: obj->erase(x); break;
             case -1: obj->erase(x); break;
-            case  1:                break; // process::next();
+            case  1:                break;
         } x = y; }
     }
     

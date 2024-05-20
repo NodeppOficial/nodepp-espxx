@@ -149,7 +149,7 @@ public:
         obj->buff  = ptr_t<uchar>( length ); 
         obj->ctx   = HMAC_CTX_new(); 
         obj->state = 1;
-        if ( !obj->ctx || !HMAC_Init_ex( obj->ctx, key.c_str(), key.size(), type, nullptr ) )
+        if ( !obj->ctx || !HMAC_Init_ex( obj->ctx, key.data(), key.size(), type, nullptr ) )
            { process::error("cant initializate hmac_t"); }
     }
 
@@ -217,7 +217,7 @@ public:
         obj->bff   = ptr_t<uchar>(UNBFF_SIZE,'\0');
         obj->ctx   = EVP_CIPHER_CTX_new(); 
         obj->state = 1; 
-        if ( !obj->ctx || !EVP_EncryptInit_ex( obj->ctx, type, NULL, (uchar*)key.data(), NULL ) )
+        if ( !obj->ctx || !EVP_EncryptInit_ex( obj->ctx, type, NULL, (uchar*)key.data(), (uchar*) "" ) )
            { process::error("cant initializate encrypt_t"); }
     }
 
@@ -291,7 +291,7 @@ public:
         obj->bff   = ptr_t<uchar>(UNBFF_SIZE,'\0');
         obj->ctx   = EVP_CIPHER_CTX_new(); 
         obj->state = 1;
-        if ( !obj->ctx || !EVP_DecryptInit_ex( obj->ctx, type, NULL, (uchar*)key.data(), NULL ) )
+        if ( !obj->ctx || !EVP_DecryptInit_ex( obj->ctx, type, NULL, (uchar*)key.data(), (uchar*)"" ) )
            { process::error("cant initializate decrypt_t"); }
     }
 
@@ -616,7 +616,7 @@ public:
                         EC_KEY_generate_key( obj->key_pair );
 
         obj->priv_key = (BIGNUM*) BN_new(); 
-        BN_hex2bn( &obj->priv_key, key.c_str() );
+        BN_hex2bn( &obj->priv_key, key.data() );
         EC_KEY_set_private_key( obj->key_pair, obj->priv_key );
 
         const EC_POINT* pub_key = EC_KEY_get0_public_key( obj->key_pair );
@@ -631,8 +631,12 @@ public:
         obj->key_pair = EC_KEY_new_by_curve_name(type);
                         EC_KEY_generate_key( obj->key_pair );
 
-        obj->pub_key  = EC_KEY_get0_public_key( obj->key_pair );
-        obj->priv_key = EC_KEY_get0_private_key( obj->key_pair );
+        obj->priv_key = (BIGNUM*) BN_new(); 
+        BN_rand( obj->priv_key, sizeof(int), -1, 0 );
+        EC_KEY_set_private_key( obj->key_pair, obj->priv_key );
+
+        const EC_POINT* pub_key = EC_KEY_get0_public_key( obj->key_pair );
+        obj->pub_key = EC_POINT_dup(pub_key,EC_KEY_get0_group(obj->key_pair));
     }
 
     string_t get_public_key() const noexcept { 
@@ -701,7 +705,7 @@ public:
         obj->key_group = EC_GROUP_new_by_curve_name(type);
 
         obj->priv_key = (BIGNUM*) BN_new(); 
-        BN_hex2bn( &obj->priv_key, key.c_str() );
+        BN_hex2bn( &obj->priv_key, key.data() );
         EC_KEY_set_private_key( obj->key_pair, obj->priv_key );
 
         obj->pub_key = (EC_POINT*) EC_POINT_new( obj->key_group );
@@ -775,12 +779,12 @@ protected:
     struct NODE {
         RSA*    rsa = nullptr;
         BIGNUM* num = nullptr;
+        ulong   len = 0;
         int   state;
     };  ptr_t<NODE> obj;
     
 public:
 
-    template< class T >
     rsa_t() : obj( new NODE() ) {
         crypto::start_device();
         obj->rsa   = RSA_new();
@@ -790,54 +794,63 @@ public:
            { process::error("creating rsa object"); }
     }
 
-    int generate_key( int keyLen ) const noexcept {
-                BN_set_word( obj->num, RSA_F4 );
+    int generate_key( int keyLen=2048 ) const noexcept {
+               obj->len = keyLen; BN_set_word( obj->num, RSA_F4 );
         return RSA_generate_key_ex( obj->rsa, keyLen, obj->num, NULL );
     }
 
-    int write_private_key( const string_t& path ) const noexcept {
-        FILE* fp = fopen( path.c_str() , "wb"); int res = 0;
+    int write_private_key( const string_t& path ) const {
+        FILE* fp = fopen( path.data() , "w"); int res = 0;
+        if ( fp == nullptr ){ process::error("while writing private key"); }
         res = PEM_write_RSAPrivateKey( fp, obj->rsa, NULL, NULL, 0, NULL, NULL);
         fclose( fp ); return res;
     }
 
-    int write_public_key( const string_t& path ) const noexcept {
-        FILE* fp = fopen( path.c_str() , "wb"); int res = 0;
+    int write_public_key( const string_t& path ) const {
+        FILE* fp = fopen( path.data() , "w"); int res = 0;
+        if ( fp == nullptr ){ process::error("while writing public key"); }
         res = PEM_write_RSAPublicKey( fp, obj->rsa );
         fclose( fp ); return res;
     }
 
-    void set_public_key( const string_t& path ) const noexcept {
-        FILE* fp = fopen( path.c_str(), "r" );
-        PEM_read_RSA_PUBKEY( fp, &obj->rsa, NULL, NULL ); fclose( fp );
+    void read_public_key( const string_t& path ) const {
+        FILE* fp = fopen( path.data(), "r" );
+        if ( fp == nullptr ){ process::error("while reading public key"); }
+        PEM_read_RSAPublicKey( fp, &obj->rsa, NULL, NULL ); fclose( fp );
     }
 
-    void set_private_key( const string_t& path ) const noexcept {
-        FILE* fp = fopen( path.c_str(), "r" );
+    void read_private_key( const string_t& path ) const {
+        FILE* fp = fopen( path.data(), "r" );
+        if ( fp == nullptr ){ process::error("while reading private key"); }
         PEM_read_RSAPrivateKey( fp, &obj->rsa, NULL, NULL ); fclose( fp );
     }
 
-    string_t encrypt( const string_t& msg, int padding=0 ) const noexcept {
-        if( msg.empty() || padding < 0 || obj->state ==0 ){ return ""; }
-        int          len = RSA_size( obj->rsa );
-        ptr_t<uchar> out = new uchar[len];
-        ulong y = 0; int c = 0;
-        string_t     bff; 
-        do { c=RSA_private_decrypt( msg.size()+y, (uchar*)msg.c_str()-y, &out, obj->rsa, padding );
-             if( c>0 ){ y+=c; } process::next(); 
-        } while( (ulong)c < msg.size() ); return bff;
+    string_t public_encrypt( const string_t& msg, int padding=RSA_PKCS1_PADDING ) const {
+        if ( msg.empty() || obj->state ==0 ){ return nullptr; }
+        ptr_t<uchar> out ( RSA_size( obj->rsa ), '\0' );
+        int c = RSA_public_encrypt( msg.size(), (uchar*)msg.data(), &out, obj->rsa, padding );
+        return string_t( (char*)& out, (ulong)c );
     }
 
-    string_t decrypt( const string_t& msg, int padding=0 ) const noexcept {
-        if( msg.empty() || padding < 0 || obj->state == 0 ){ return ""; }
-        int          len = RSA_size( obj->rsa );
-        ptr_t<uchar> out = new uchar[len];
-        ulong y = 0; int c = 0;
-        string_t     bff; 
-        do { c=RSA_public_encrypt( msg.size()+y, (uchar*)msg.c_str()-y, &out, obj->rsa, padding );
-             if( c>0 ){ y+=c; } process::next(); 
-        } while( (ulong)c < msg.size() ); return bff;
-        return bff;
+    string_t private_encrypt( const string_t& msg, int padding=RSA_PKCS1_PADDING ) const {
+        if( msg.empty() || obj->state ==0 ){ return nullptr; }
+        ptr_t<uchar> out ( RSA_size( obj->rsa ), '\0' );
+        int c = RSA_private_encrypt( msg.size(), (uchar*)msg.data(), &out, obj->rsa, padding );
+        return string_t( (char*)& out, (ulong)c );
+    }
+
+    string_t public_decrypt( const string_t& msg, int padding=RSA_PKCS1_PADDING ) const {
+        if( msg.empty() || obj->state == 0 ){ return nullptr; }
+        ptr_t<uchar> out ( RSA_size( obj->rsa ), '\0' );
+        int c = RSA_public_decrypt( msg.size(), (uchar*)msg.data(), &out, obj->rsa, padding );
+        return string_t( (char*)& out, (ulong)c );
+    }
+
+    string_t private_decrypt( const string_t& msg, int padding=RSA_PKCS1_PADDING ) const {
+        if( msg.empty() || obj->state == 0 ){ return nullptr; }
+        ptr_t<uchar> out ( RSA_size( obj->rsa ), '\0' );
+        int c = RSA_private_decrypt( msg.size(), (uchar*)msg.data(), &out, obj->rsa, padding );
+        return string_t( (char*)& out, (ulong)c );
     }
 
     bool is_available() const noexcept { return obj->state == 1; }
@@ -847,15 +860,13 @@ public:
     void close() const noexcept { free(); } 
 
     void free() const noexcept { 
-        if( obj->state == 0 ){ return; } obj->state = 0;
+        if( obj.count() > 1 ){ return; } 
+        if( obj->state == 0 ){ return; } obj->state =0;
         if( obj->rsa != nullptr ) RSA_free( obj->rsa );
         if( obj->num != nullptr )  BN_free( obj->num );
     }
     
-    virtual ~rsa_t() noexcept { 
-        if( obj.count()>1 ){ return; } 
-            free();
-    }
+    virtual ~rsa_t() noexcept { free(); }
 
 };
 
@@ -887,13 +898,13 @@ public:
 
     int set_public_key( const string_t& key ) const noexcept {
         if( obj->state != 1 ){ return 0; }
-               BN_hex2bn( &obj->k, key.c_str() );
+               BN_hex2bn( &obj->k, key.data() );
         return DH_set0_key( obj->dh, nullptr, obj->k );
     }
 
     int set_private_key( const string_t& key ) const noexcept {
         if( obj->state != 1 ){ return 0; }
-               BN_hex2bn( &obj->k, key.c_str() );
+               BN_hex2bn( &obj->k, key.data() );
         return DH_set0_key( obj->dh, obj->k, nullptr );
     }
 
@@ -915,7 +926,7 @@ public:
     string_t compute_key( const string_t& key ) const noexcept {
         if( obj->state != 1 ){ return ""; } 
         ptr_t<uchar> shared ( DH_size( obj->dh ) );
-                  BN_hex2bn( &obj->k, key.c_str() );
+                  BN_hex2bn( &obj->k, key.data() );
         int len = DH_compute_key( &shared, obj->k, obj->dh );
         return string_t( (char*) &shared, (ulong) len );
     }
@@ -940,29 +951,18 @@ protected:
     
 public:
 
-    template< class T >
-    dsa_t( uint size ) 
+    dsa_t( uint size=512 ) 
     : obj( new NODE() ) { crypto::start_device();
         obj->state = 1; obj->len = size; obj->dsa = DSA_new(); 
         if(!DSA_generate_parameters_ex( obj->dsa, obj->len, NULL, 0, NULL, NULL, NULL ) )
           { process::error("while generating DSA parameters"); }
         if(!DSA_generate_key( obj->dsa ) )
           { process::error("while generating DSA key"); }
-
-    }
-
-    template< class T >
-    dsa_t( const string_t& path, uint size ) 
-    : obj( new NODE() ) { crypto::start_device(); obj->state = 1;
-        obj->len = size; obj->dsa = DSA_new(); FILE* fp = fopen(path.c_str(),"r");
-        if ( fp == nullptr ) process::error("such file or directory does not exist");
-        obj->dsa = PEM_read_DSAPrivateKey( fp, &obj->dsa, nullptr, nullptr );
-        fclose( fp ); if( obj->dsa==nullptr ) process::error("while creating DSA");
     }
 
     string_t sign( const string_t& msg ) const noexcept {
         if( obj->state != 1 ){ return ""; } ptr_t<uchar> sgn( DSA_size(obj->dsa) ); uint len;
-        DSA_sign( 0, (uchar*)msg.c_str(), msg.size(), &sgn, &len, obj->dsa );
+        DSA_sign( 0, (uchar*)msg.data(), msg.size(), &sgn, &len, obj->dsa );
         return { (char*) &sgn, (ulong) len };
     }
 
@@ -970,15 +970,27 @@ public:
         return DSA_verify( 0, (uchar*)msg.data(), msg.size(), (uchar*)sgn.data(), sgn.size(), obj->dsa );
     }
 
-    void save_private_key( const string_t& path ) const {
-        if( obj->state != 1 ){ return; } FILE* fp = fopen( path.c_str(), "w" );
+    void read_private_key( const string_t& path ) const {
+        FILE* fp = fopen(path.data(),"r");
+        if ( fp == nullptr ) process::error(" while reading private key");
+        obj->dsa = PEM_read_DSAPrivateKey( fp, &obj->dsa, nullptr, nullptr );
+    }
+
+    void read_public_key( const string_t& path ) const {
+        FILE* fp = fopen(path.data(),"r");
+        if ( fp == nullptr ) process::error(" while reading public key");
+        obj->dsa = PEM_read_DSA_PUBKEY( fp, &obj->dsa, nullptr, nullptr );
+    }
+
+    void write_private_key( const string_t& path ) const {
+        if( obj->state != 1 ){ return; } FILE* fp = fopen( path.data(), "w" );
         if ( fp == nullptr ) { process::error("while creating file"); }
         if (!PEM_write_DSA_PUBKEY( fp, obj->dsa ) ) 
            { fclose( fp ); process::error("while writting the private key"); } fclose( fp );
     }
 
-    void save_public_key( const string_t& path ) const {
-        if( obj->state != 1 ){ return; } FILE* fp = fopen( path.c_str(), "w" );
+    void write_public_key( const string_t& path ) const {
+        if( obj->state != 1 ){ return; } FILE* fp = fopen( path.data(), "w" );
         if ( fp == nullptr ) { process::error("while creating file"); }
         if (!PEM_write_DSAPrivateKey( fp, obj->dsa, nullptr, nullptr, 0, nullptr, nullptr ) )
            { fclose( fp ); process::error("while writting the public key"); } fclose( fp );
@@ -1035,6 +1047,18 @@ namespace crypto { namespace hash {
           SHA512() : hash_t( EVP_sha512(), SHA512_DIGEST_LENGTH ) {}
     };
 
+    class KECCAK256 : public hash_t { public:
+          KECCAK256() : hash_t( EVP_sha3_256(), SHA256_DIGEST_LENGTH ) {}
+    };
+
+    class KECCAK384 : public hash_t { public:
+          KECCAK384() : hash_t( EVP_sha3_384(), SHA384_DIGEST_LENGTH ) {}
+    };
+
+    class KECCAK512 : public hash_t { public:
+          KECCAK512() : hash_t( EVP_sha3_512(), SHA512_DIGEST_LENGTH ) {}
+    };
+
     class RIPEMD160 : public hash_t { public:
           RIPEMD160() : hash_t( EVP_ripemd160(), RIPEMD160_DIGEST_LENGTH ) {}
     }; 
@@ -1067,6 +1091,18 @@ namespace crypto { namespace hmac {
 
     class SHA512 : public hmac_t { public:
           SHA512 ( const string_t& key ) : hmac_t( key, EVP_sha512(), SHA512_DIGEST_LENGTH ) {}
+    };
+
+    class KECCAK256 : public hmac_t { public:
+          KECCAK256 ( const string_t& key ) : hmac_t( key, EVP_sha3_256(), SHA256_DIGEST_LENGTH ) {}
+    };
+
+    class KECCAK384 : public hmac_t { public:
+          KECCAK384 ( const string_t& key ) : hmac_t( key, EVP_sha3_384(), SHA384_DIGEST_LENGTH ) {}
+    };
+
+    class KECCAK512 : public hmac_t { public:
+          KECCAK512 ( const string_t& key ) : hmac_t( key, EVP_sha3_512(), SHA512_DIGEST_LENGTH ) {}
     };
 
     class RIPEMD160 : public hmac_t { public:
@@ -1305,20 +1341,30 @@ namespace crypto { namespace ecdsa { //openssl ecparam -list_curves
     
     /*─······································································─*/
 
-namespace crypto { namespace DH {
+namespace crypto { namespace dh {
     
     class DH : public dh_t { public: template< class... T >
-          DH ( const T&... args ) : dh_t( args... ) {}
+          DH ( const T&... args ) : dh_t ( args... ) {}
     };
 
 }}
     
     /*─······································································─*/
 
-namespace crypto { namespace sign {
+namespace crypto { namespace rsa {
     
-    class DSA : public ecdsa_t { public: template< class... T >
-          DSA ( const T&... args ) : dsa_t( args... ) {}
+    class RSA : public rsa_t { public: template< class... T >
+          RSA ( const T&... args ) : rsa_t ( args... ) {}
+    };
+
+}}
+    
+    /*─······································································─*/
+
+namespace crypto { namespace dsa {
+    
+    class DSA : public dsa_t { public: template< class... T >
+          DSA ( const T&... args ) : dsa_t ( args... ) {}
     };
 
 }}

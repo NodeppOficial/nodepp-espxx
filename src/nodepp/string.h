@@ -455,7 +455,7 @@ namespace string {
 
     ldouble to_ldouble( const string_t& buffer ){
         ldouble out=0.0f; if( buffer.empty() ){ return out; }
-        sscanf( (char*) buffer, "%llf", &out ); return out;
+        sscanf( (char*) buffer, "%Lf", &out ); return out;
     }
 
     double to_double( const string_t& buffer ){
@@ -576,7 +576,7 @@ namespace string {
     }
 
     string_t to_string( ldouble num ){
-        char buffer[32]; auto x = sprintf( buffer, "%llf", num );
+        char buffer[32]; auto x = sprintf( buffer, "%Lf", num );
         return { buffer, (ulong)x };
     }
 

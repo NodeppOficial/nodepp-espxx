@@ -29,7 +29,7 @@ public:
    	    process::onSIGERR.off( obj->ev );
     }
 
-    except_t() noexcept = default;
+    except_t() noexcept : obj( new NODE() ) {}
 
     /*─······································································─*/
 

@@ -101,7 +101,12 @@ public:
     bool has_value() const noexcept { return obj->mem.has_value(); }
 
     template< class U > 
-    U as() const noexcept { return obj->mem.as<U>(); }
+    U as() const { 
+        if ( get_type_id() < 20 && get_type_id() > 21 &&
+             obj_type_id<U>::value != get_type_id()
+          ){ process::error( "not valid object type" ); }
+             return obj->mem.as<U>(); 
+    }
 
     /*─······································································─*/
 
@@ -117,7 +122,7 @@ public:
              { return x->data.second; }
            if(!x->data.second.has_value() )
              { mem.erase(x); } x = y;
-        }    
+        }
 
         T item ({ name, object_t() }); mem.push( item ); 
         obj->mem = mem; obj->type = 20;

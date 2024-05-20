@@ -142,9 +142,10 @@ public: serial_t() noexcept {}
 
         char x = 0; obj->feof = 0;
 
-        while((x=Serial.read()) == -1 ){
+        while( (x=Serial.read()) != -1 ){
            if( sx==obj->feof ){ break; } 
                bf[obj->feof] = x;
+               obj->feof++;
         }
 
         Serial.flush(); return obj->feof;
@@ -154,7 +155,7 @@ public: serial_t() noexcept {}
         if( is_closed() ){ return -1; } if( sx==0 ){ return 0; }
         if(!Serial.availableForWrite() ){ return -2; }
         obj->feof= Serial.write( bf, sx );
-        return obj->feof;
+        Serial.flush(); return obj->feof;
     }
 
 };}
