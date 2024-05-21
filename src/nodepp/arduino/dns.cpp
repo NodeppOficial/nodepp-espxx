@@ -40,14 +40,12 @@ namespace nodepp { namespace dns {
 
         char ipstr[INET6_ADDRSTRLEN]; string_t ipAddress;
         while ( res != nullptr ) { void *addr = nullptr; 
-            
             if ( res->ai_family == AF_INET6 ) {
                 struct sockaddr_in6 *ipv6 = (struct sockaddr_in6 *)res->ai_addr;
                 addr = &(ipv6->sin6_addr);
-            }
-
-            inet_ntop( res->ai_family, addr, ipstr, sizeof(ipstr) );
-            ipAddress = ipstr; res = res->ai_next;
+            } if ( addr != nullptr ){
+                 inet_ntop( res->ai_family, addr, ipstr, sizeof(ipstr) );
+            }    ipAddress = ipstr; res = res->ai_next;
         }
 
         freeaddrinfo(res); return ipAddress;
@@ -74,14 +72,12 @@ namespace nodepp { namespace dns {
 
         char ipstr[INET_ADDRSTRLEN]; string_t ipAddress;
         while ( res != nullptr ) { void *addr = nullptr; 
-            
             if ( res->ai_family == AF_INET ) {
                 struct sockaddr_in *ipv4 = (struct sockaddr_in *)res->ai_addr;
                 addr = &(ipv4->sin_addr);
-            }
-
-            inet_ntop( res->ai_family, addr, ipstr, sizeof(ipstr) );
-            ipAddress = ipstr; res = res->ai_next;
+            } if ( addr != nullptr ){
+                 inet_ntop( res->ai_family, addr, ipstr, sizeof(ipstr) );
+            }    ipAddress = ipstr; res = res->ai_next;
         }
 
         freeaddrinfo(res); return ipAddress;
