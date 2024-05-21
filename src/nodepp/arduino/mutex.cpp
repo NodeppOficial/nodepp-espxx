@@ -40,10 +40,9 @@ protected:
 public:
 
     mutex_t() : mutex( new NODE() ) {
-        if( pthread_mutex_init(&mutex->fd,NULL) != 0 )
+        if( pthread_mutex_init(&mutex->fd,NULL)!= 0 )
           { process::error("Cant Start Mutex"); }
-            mutex->addr = nullptr;
-            mutex->state= 1;
+            mutex->addr = nullptr; mutex->state = 1;
     }
 
     virtual ~mutex_t() noexcept {
@@ -57,7 +56,7 @@ public:
 
     void free() const noexcept {
          if( mutex->state == 0 ){ return; }
-             mutex->state == 0;
+             mutex->state =  0;
          pthread_mutex_destroy(&mutex->fd);
     }
     

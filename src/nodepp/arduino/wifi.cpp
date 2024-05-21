@@ -7,16 +7,30 @@
 /*────────────────────────────────────────────────────────────────────────────*/
 
 namespace nodepp { class wifi_t {
+protected:
+
+    struct NODE {
+        wifi_config_t wifi_cfg;
+        wifi_init_config_t cfg;
+        int   state = 1;
+    };  ptr_t<NODE> obj;
+
 public:
 
     event_t<void*,wifi_promiscuous_pkt_type_t> onPackage;
     event_t<except_t>                          onError;
     event_t<>                                  onClose;
 
-   ~wifi_t() noexcept { onClose.emit(); } wifi_t() noexcept {
-        wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT(); esp_wifi_init( &cfg ); 
-        esp_wifi_set_storage(WIFI_STORAGE_RAM); esp_wifi_set_mode(WIFI_MODE_NULL);
-        esp_wifi_start();
+   ~wifi_t() noexcept { 
+       if( obj.count() > 1 ){ return; }
+       if( obj->state == 0 ){ return; }
+       obj->state = 0; onClose.emit(); 
+    } 
+   
+   wifi_t() noexcept : obj( new NODE() ) {
+        obj->cfg = WIFI_INIT_CONFIG_DEFAULT(); esp_wifi_init( &obj->cfg ); 
+        esp_wifi_set_storage(WIFI_STORAGE_RAM); 
+        esp_wifi_set_mode(WIFI_MODE_NULL);
     }
 
     int turn_on() const noexcept {
@@ -31,28 +45,9 @@ public:
         return dns::get_hostname();
     }
 
-    void unpipe() const noexcept {
-        esp_wifi_set_promiscuous(false);
-    }
-
-    void pipe() const noexcept {
-
-        esp_wifi_set_promiscuous(true);
-        auto self = type::bind(this);
-
-        wifi_promiscuous_filter_t filter = {
-            .filter_mask = WIFI_PROMIS_FILTER_MASK_ALL
-        };   esp_wifi_set_promiscuous_filter(&filter);
-
-        esp_wifi_set_promiscuous_rx_cb([=]( void* buf, wifi_promiscuous_pkt_type_t type ){
-            self->onPackage( buff, type );
-        }); esp_wifi_set_channel( 1, WIFI_SECOND_CHAN_NONE );
-
-    }
-
     ptr_t<wifi_ap_record_t> get_ssid_list() const noexcept {
 
-        wifi_scan_config_t scan_config; 
+        wifi_scan_config_t scan_config;
         scan_config.show_hidden = true;
         scan_config.ssid    = 0;
         scan_config.channel = 0;
@@ -73,18 +68,17 @@ public:
 
     void softAP( const string_t& ssid, const string_t& pass, int channel ) const noexcept {
         
-        wifi_config_t wifi_config;
-        wifi_config.ap.channel = channel;
-        wifi_config.ap.ssid    = ssid.get();
-        wifi_config.ap.max_connection = MAX_SOCKET;
+        obj->wifi_cfg.ap.channel = channel;
+        obj->wifi_cfg.ap.max_connection = MAX_SOCKET;
+        memcpy( obj->wifi_cfg.ap.ssid, ssid.get(), min( (uchar)32, (uchar)ssid.size() ));
 
         if( !pass.empty() ){
-            wifi_config.ap.password = pass.get();
-            wifi_config.ap.authmode = WIFI_AUTH_WPA2_PSK;
+            memcpy( obj->wifi_cfg.ap.password, pass.get(), min( (uchar)32, (uchar)pass.size() ));
+            obj->wifi_cfg.ap.authmode = WIFI_AUTH_WPA2_PSK;
         }
 
         esp_wifi_set_mode( WIFI_MODE_AP );
-        esp_wifi_set_config( ESP_IF_WIFI_AP, &wifi_config );
+        esp_wifi_set_config( WIFI_IF_AP, &obj->wifi_cfg );
 
         if( esp_wifi_start() != ESP_OK )
           { _EERROR( onError, "can't start wifi mode"); }
@@ -93,12 +87,11 @@ public:
 
     void connect( const string_t& ssid, const string_t& pass ) const noexcept {
         
-        wifi_config_t wifi_config; 
-        wifi_config.sta.ssid     = ssid.get();
-        wifi_config.sta.password = pass.get();
+        memcpy( obj->wifi_cfg.sta.ssid    , ssid.get(), min( (uchar)32, (uchar)ssid.size() ));
+        memcpy( obj->wifi_cfg.sta.password, pass.get(), min( (uchar)32, (uchar)pass.size() ));
 
         esp_wifi_set_mode( WIFI_MODE_STA );
-        esp_wifi_set_config( ESP_IF_WIFI_STA, &wifi_config );
+        esp_wifi_set_config( WIFI_IF_STA, &obj->wifi_cfg );
 
         if( esp_wifi_start() != ESP_OK )
           { _EERROR( onError, "can't start wifi mode"); }

@@ -15,30 +15,7 @@
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-#include <openssl/ripemd.h>
-#include <openssl/hmac.h>
-#include <openssl/sha.h>
-#include <openssl/md4.h>
-#include <openssl/md5.h>
-#include <openssl/evp.h>
-#include <openssl/aes.h>
-#include <openssl/des.h>
-
-/*────────────────────────────────────────────────────────────────────────────*/
-
-#include <openssl/dh.h>
-#include <openssl/dsa.h>
-#include <openssl/rsa.h>
-#include <openssl/pem.h>
-#include <openssl/err.h>
-
-/*────────────────────────────────────────────────────────────────────────────*/
-
-#include <openssl/ec.h>
-#include <openssl/bn.h>
-#include <openssl/ecdh.h>
-#include <openssl/ecdsa.h>
-#include <openssl/obj_mac.h>
+#include <mbedtls/aes.h>
 
 /*────────────────────────────────────────────────────────────────────────────*/
 

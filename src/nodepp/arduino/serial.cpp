@@ -142,11 +142,12 @@ public: serial_t() noexcept {}
 
         char x = 0; obj->feof = 0;
 
-        while( (x=Serial.read()) != -1 ){
-           if( sx==obj->feof ){ break; } 
-               bf[obj->feof] = x;
-               obj->feof++;
-        }
+        do { x = Serial.read();
+        if ( sx==obj->feof ){ break; }
+        if ( x == -1 )      { break; }
+             bf[obj->feof] = x;
+             obj->feof++;
+        } while( true );
 
         Serial.flush(); return obj->feof;
     }
