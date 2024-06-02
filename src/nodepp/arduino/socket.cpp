@@ -95,22 +95,22 @@ public: socket_t() noexcept { _socket_::start_device(); }
              { process::next(); } return c;
     }
 
-    int set_recv_timeout( long time ) const noexcept { int c; TIMEVAL en; en.tv_sec=time; 
+    int set_recv_timeout( uint time ) const noexcept { int c; TIMEVAL en; en.tv_sec=time; en.tv_usec=0; 
         while( is_blocked( c=setsockopt( obj->fd, SOL_SOCKET, SO_RCVTIMEO, (char*)&en, sizeof(en) ) ) )
              { process::next(); } return c; 
     }
 
-    int set_send_timeout( long time ) const noexcept { int c; TIMEVAL en; en.tv_sec=time;
+    int set_send_timeout( uint time ) const noexcept { int c; TIMEVAL en; en.tv_sec=time; en.tv_usec=0;
         while( is_blocked( c=setsockopt( obj->fd, SOL_SOCKET, SO_SNDTIMEO, (char*)&en, sizeof(en) ) ) )
              { process::next(); } return c;
     }
 
-    int set_accept_connection( ulong en ) const noexcept { int c;
+    int set_accept_connection( uint en ) const noexcept { int c;
         while( is_blocked( c=setsockopt( obj->fd, SOL_SOCKET, SO_ACCEPTCONN, (char*)&en, sizeof(en) ) ) )
              { process::next(); } return c;
     }
 
-    int set_dont_route( ulong en ) const noexcept { int c;
+    int set_dont_route( uint en ) const noexcept { int c;
         while( is_blocked( c=setsockopt( obj->fd, SOL_SOCKET, SO_DONTROUTE, (char*)&en, sizeof(en) ) ) )
              { process::next(); } return c;
     }
@@ -157,14 +157,14 @@ public: socket_t() noexcept { _socket_::start_device(); }
              { process::next(); } return c==0 ? en : c;
     }
 
-    long get_recv_timeout() const noexcept { int c; TIMEVAL en; socklen_t size = sizeof(en);
+    int get_recv_timeout() const noexcept { int c, en; socklen_t size = sizeof(en);
         while( is_blocked( c=getsockopt(obj->fd, SOL_SOCKET, SO_RCVTIMEO, (char*)&en, &size) ) )
-             { process::next(); } return c==0 ? en.tv_sec : c;
+             { process::next(); } return c==0 ? en : c;
     }
 
-    long get_send_timeout() const noexcept { int c; TIMEVAL en; socklen_t size = sizeof(en);
+    int get_send_timeout() const noexcept { int c, en; socklen_t size = sizeof(en);
         while( is_blocked( c=getsockopt(obj->fd, SOL_SOCKET, SO_SNDTIMEO, (char*)&en, &size) ) )
-             { process::next(); } return c==0 ? en.tv_sec : c;
+             { process::next(); } return c==0 ? en : c;
     }
 
     int get_accept_connection() const noexcept { int c, en; socklen_t size = sizeof(en);
@@ -229,7 +229,7 @@ public: socket_t() noexcept { _socket_::start_device(); }
     
     /*─······································································─*/
 
-    int set_timeout( long time ) const noexcept {
+    int set_timeout( uint time ) const noexcept {
         if( set_recv_timeout( time )<0 ){ return -1; } 
         if( set_send_timeout( time )<0 ){ return -1; } return 1; 
     }
