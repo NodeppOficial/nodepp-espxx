@@ -45,13 +45,13 @@ namespace nodepp { namespace _socket_ {
 namespace nodepp {
 
 struct agent_t {
-    bool  reuse_address = 1;
-    uint  recv_timeout  = 0;
-    uint  send_timeout  = 0;
-    ulong buffer_size   = CHUNK_SIZE;
-    bool  reuse_port    = 1;
-    bool  keep_alive    = 0;
-    bool  broadcast     = 0;
+    bool reuse_address = 1;
+    uint recv_timeout  = 120;
+    uint send_timeout  = 120;
+    uint buffer_size   = CHUNK_SIZE;
+    bool reuse_port    = 1;
+    bool keep_alive    = 0;
+    bool broadcast     = 0;
 };
 
 class socket_t : public file_t {
@@ -85,12 +85,12 @@ public: socket_t() noexcept { _socket_::start_device(); }
     
     /*─······································································─*/
 
-    int set_recv_buff( ulong en ) const noexcept { int c;
+    int set_recv_buff( uint en ) const noexcept { int c;
         while( is_blocked( c=setsockopt( obj->fd, SOL_SOCKET, SO_RCVBUF, (char*)&en, sizeof(en) ) ) )
              { process::next(); } return c;
     }
 
-    int set_send_buff( ulong en ) const noexcept { int c;
+    int set_send_buff( uint en ) const noexcept { int c;
         while( is_blocked( c=setsockopt( obj->fd, SOL_SOCKET, SO_SNDBUF, (char*)&en, sizeof(en) ) ) )
              { process::next(); } return c;
     }
