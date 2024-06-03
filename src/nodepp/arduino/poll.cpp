@@ -10,19 +10,18 @@
 /*────────────────────────────────────────────────────────────────────────────*/
 
 #pragma once
-#include <poll.h>
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
 namespace nodepp {
 
-namespace { using POLLFD = struct pollfd; }
-
 class poll_t : public generator_t {
 protected:
 
+    struct POLLFD { int fd; int md; };
+
     struct NODE {
-        array_t<POLLFD> ev;
+        queue_t<POLLFD> ev;
         ptr_t<int>      ls;
     };  ptr_t<NODE>    obj;
 
@@ -36,7 +35,8 @@ public: poll_t() noexcept : obj( new NODE() ) {}
 
     virtual ~poll_t() noexcept { 
         if ( obj.count() > 1 ){ return; }
-        for( auto x : obj->ev ) onError.emit(x.fd); 
+        for( auto x : obj->ev.data() ) 
+             onError.emit( x.md ); 
     }
 
     /*─······································································─*/
@@ -48,16 +48,15 @@ public: poll_t() noexcept : obj( new NODE() ) {}
     /*─······································································─*/
 
     int emit () noexcept { 
-        static ulong s=0; static POLLFD x;
-    gnStart
+        static POLLFD x;
+    gnStart 
+    
+        if( obj->ev.empty() ){ coEnd; }
 
-        if( obj->ev.empty() )                               { coEnd; }
-        if( ::poll( obj->ev.data(), obj->ev.size(), 0 )<=0 ){ coEnd; } s = obj->ev.size(); 
-
-        while( s-->0 ){ x = obj->ev[s]; 
-              if( x.revents & POLLERR ){ obj->ev.erase(s); onError.emit(x.fd); obj->ls={{-1, x.fd }}; coNext; }
-            elif( x.revents & POLLIN  ){ obj->ev.erase(s);  onRead.emit(x.fd); obj->ls={{ 0, x.fd }}; coNext; }
-            elif( x.revents & POLLOUT ){ obj->ev.erase(s); onWrite.emit(x.fd); obj->ls={{ 1, x.fd }}; coNext; }
+        while ( obj->ev.next() ) { x=obj->ev.get()->data;
+            if( x.md == 1 ){ obj->ev.erase(obj->ev.get()); onWrite.emit(x.fd); obj->ls={{ 1, x.fd }}; coNext; }
+          elif( x.md == 0 ){ obj->ev.erase(obj->ev.get());  onRead.emit(x.fd); obj->ls={{ 0, x.fd }}; coNext; }
+          else             { obj->ev.erase(obj->ev.get()); onError.emit(x.fd); obj->ls={{-1, x.fd }}; coNext; }
         }
 
     gnStop
@@ -66,11 +65,11 @@ public: poll_t() noexcept : obj( new NODE() ) {}
     /*─······································································─*/
 
     void push_write( const int& fd ) noexcept { 
-	     obj->ev.unshift({ fd, POLLOUT, 0 }); 
+	     obj->ev.push({ fd, 1 }); 
     }
 
     void push_read( const int& fd ) noexcept { 
-         obj->ev.unshift({ fd, POLLIN, 0 }); 
+         obj->ev.push({ fd, 0 }); 
     }
 
 };}

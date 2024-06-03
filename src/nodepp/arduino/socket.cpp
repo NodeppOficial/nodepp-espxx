@@ -24,18 +24,7 @@ namespace nodepp { namespace _socket_ {
 
     void start_device(){ static bool sockets=false; 
         if( sockets == false ){
-
-            process::onSIGEXIT([=](){
-                #ifdef SIGPIPE
-                    process::signal::unignore( SIGPIPE );
-                #endif 
-            });
-            
-                #ifdef SIGPIPE
-                    process::signal::ignore( SIGPIPE );
-                #endif
-
-        }   sockets = true;
+          } sockets =  true;
     }
 
 }}
@@ -95,7 +84,7 @@ public: socket_t() noexcept { _socket_::start_device(); }
              { process::next(); } return c;
     }
 
-    int set_recv_timeout( uint time ) const noexcept { int c; TIMEVAL en; en.tv_sec=time; en.tv_usec=0; 
+    int set_recv_timeout( uint time ) const noexcept { int c; TIMEVAL en; en.tv_sec=time; en.tv_usec=0;
         while( is_blocked( c=setsockopt( obj->fd, SOL_SOCKET, SO_RCVTIMEO, (char*)&en, sizeof(en) ) ) )
              { process::next(); } return c; 
     }
@@ -182,17 +171,17 @@ public: socket_t() noexcept { _socket_::start_device(); }
              { process::next(); } return c==0 ? en : c;
     }
 
-    int get_ipv6_only_mode() const noexcept { int c, en; socklen_t size = sizeof(en);
-        while( is_blocked( c=getsockopt(obj->fd, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&en, &size) ) )
-             { process::next(); } return c==0 ? en : c;
-    }
-
 #ifdef SO_REUSEPORT
     int get_reuse_port() const noexcept { int c, en; socklen_t size = sizeof(en);
         while( is_blocked( c=getsockopt(obj->fd, SOL_SOCKET, SO_REUSEPORT, (char*)&en, &size) ) )
              { process::next(); } return c==0 ? en : c;
     }
 #endif
+
+    int get_ipv6_only_mode() const noexcept { int c, en; socklen_t size = sizeof(en);
+        while( is_blocked( c=getsockopt(obj->fd, IPPROTO_IPV6, IPV6_V6ONLY, (char*)&en, &size) ) )
+             { process::next(); } return c==0 ? en : c;
+    }
 
     int get_keep_alive() const noexcept { int c, en; socklen_t size = sizeof(en);
         while( is_blocked( c=getsockopt(obj->fd, SOL_SOCKET, SO_KEEPALIVE, (char*)&en, &size) ) )
@@ -229,9 +218,9 @@ public: socket_t() noexcept { _socket_::start_device(); }
     
     /*─······································································─*/
 
-    int set_timeout( uint time ) const noexcept {
-        if( set_recv_timeout( time )<0 ){ return -1; } 
-        if( set_send_timeout( time )<0 ){ return -1; } return 1; 
+    int set_timeout( uint en ) const noexcept {
+        if( set_recv_timeout( en )<0 ){ return -1; } 
+        if( set_send_timeout( en )<0 ){ return -1; } return 1; 
     }
     
     /*─······································································─*/

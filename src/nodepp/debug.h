@@ -25,9 +25,8 @@ protected:
 public:
 
     virtual ~debug_t() noexcept { 
-        process::onSIGERR.off(obj->ev);
-        if ( obj.count() == 2 ){ 
-	    console::log( obj->msg, "closed" );  
+        if( obj.count() == 2 ){ 
+	          console::log( obj->msg, "closed" );  
         }
     }
     
@@ -36,16 +35,10 @@ public:
     debug_t( const string_t& msg ) noexcept : obj(new NODE()) {
         obj->msg = msg; 
         auto inp = type::bind( this );
-        obj->ev  = process::onSIGERR([=](){ inp->error(); });
-	               console::log( obj->msg, "open" );
+	      console::log( obj->msg, "open" );
     }
     
-    debug_t() noexcept : obj(new NODE()) {
-        auto inp = type::bind( this );
-        obj->msg = "something went wrong";
-        obj->ev  = process::onSIGERR([=](){ inp->error(); });
-	               console::log( obj->msg, "open" );
-    }
+    debug_t() noexcept : obj(new NODE()) {}
     
     /*─······································································─*/
 

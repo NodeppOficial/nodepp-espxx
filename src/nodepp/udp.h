@@ -106,19 +106,19 @@ public: udp_t() noexcept : obj(new NODE()) {}
 
 namespace udp {
 
-    udp_t server( const udp_t& server ){ server.onSocket([=]( socket_t cli ){
+    udp_t server( const udp_t& server ){ server.onSocket([=]( socket_t sck ){
         ptr_t<_file_::read> _read = new _file_::read;
-        cli.onDrain.once([=](){ cli.free(); });
+        sck.onDrain.once([=](){ sck.free(); });
 
-        server.onConnect.once([=]( socket_t cli ){ process::poll::add([=](){
-            if(!cli.is_available() )    { cli.close(); return -1; }
-            if((*_read)(&cli)==1 )      { return 1; }
+        server.onConnect.once([=]( socket_t sck ){ process::poll::add([=](){
+            if(!sck.is_available() )    { sck.close(); return -1; }
+            if((*_read)(&sck)==1 )      { return 1; }
             if(  _read->state<=0 )      { return 1; }
-            cli.onData.emit(_read->data); return 1;
+            sck.onData.emit(_read->data); return 1;
         }) ; });
 
         process::task::add([=](){
-            server.onConnect.emit(cli); return -1;
+            server.onConnect.emit(sck); return -1;
         });
 
     }); return server; }
@@ -132,15 +132,15 @@ namespace udp {
 
     /*─······································································─*/
 
-    udp_t client( const udp_t& client ){ client.onOpen.once([=]( socket_t cli ){
+    udp_t client( const udp_t& client ){ client.onOpen.once([=]( socket_t sck ){
         ptr_t<_file_::read> _read = new _file_::read;
-        cli.onDrain.once([=](){ cli.free(); });
+        sck.onDrain.once([=](){ sck.free(); });
 
         process::poll::add([=](){
-            if(!cli.is_available() )    { cli.close(); return -1; }
-            if((*_read)(&cli)==1 )      { return 1; }
+            if(!sck.is_available() )    { sck.close(); return -1; }
+            if((*_read)(&sck)==1 )      { return 1; }
             if(  _read->state<=0 )      { return 1; }
-            cli.onData.emit(_read->data); return 1;
+            sck.onData.emit(_read->data); return 1;
         });
 
     }); return client; }

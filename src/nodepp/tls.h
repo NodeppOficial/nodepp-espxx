@@ -40,8 +40,8 @@ protected:
 
     void init_poll_loop( ptr_t<const tls_t>& self ) const noexcept { process::poll::add([=](){
         if( self->is_closed() ){ return -1; } if( self->obj->poll.emit() != -1 ) { auto x = self->obj->poll.get_last_poll();
-            if( x[0] == 0 ){ ssocket_t cli(self->obj->ctx,x[1]); cli.set_sockopt(self->obj->agent); self->onSocket.emit(cli); self->obj->func(cli); }
-            if( x[0] == 1 ){ ssocket_t cli(self->obj->ctx,x[1]); cli.set_sockopt(self->obj->agent); self->onSocket.emit(cli); self->obj->func(cli); }
+            if( x[0] == 0 ){ ssocket_t sck(self->obj->ctx,x[1]); sck.set_sockopt(self->obj->agent); self->onSocket.emit(sck); self->obj->func(sck); }
+            if( x[0] == 1 ){ ssocket_t sck(self->obj->ctx,x[1]); sck.set_sockopt(self->obj->agent); self->onSocket.emit(sck); self->obj->func(sck); }
         #if _KERNEL == NODEPP_KERNEL_WINDOWS
             if( x[0] ==-1 ){ ::closesocket(x[1]); }
         #else
@@ -107,13 +107,13 @@ public: tls_t() noexcept : obj( new NODE() ) {}
             if( _accept == -1 ){ _EERROR(self->onError,"Error while accepting TLS"); coGoto(2); }
             elif ( !sk->is_available() || self->is_closed() ){ coGoto(2); }
             elif ( self->obj->chck == true ){ self->obj->poll.push_read(_accept); coGoto(0); }
-            else { ssocket_t cli( self->obj->ctx, _accept ); if( cli.is_available() ){ 
-                   process::poll::add([=]( ssocket_t cli ){
-                        cli.set_sockopt( self->obj->agent ); 
-                        self->onSocket.emit( cli ); 
-                        self->obj->func( cli ); 
+            else { ssocket_t sck( self->obj->ctx, _accept ); if( sck.is_available() ){ 
+                   process::poll::add([=]( ssocket_t sck ){
+                        sck.set_sockopt( self->obj->agent ); 
+                        self->onSocket.emit( sck ); 
+                        self->obj->func( sck ); 
                         return -1;
-                   }, cli );
+                   }, sck );
             } coGoto(0); } 
 
             coYield(2); self->close(); delete sk; 
@@ -168,19 +168,19 @@ public: tls_t() noexcept : obj( new NODE() ) {}
 
 namespace tls {
     
-    tls_t server( const tls_t& server ){ server.onSocket([=]( ssocket_t cli ){
+    tls_t server( const tls_t& server ){ server.onSocket([=]( ssocket_t sck ){
         ptr_t<_file_::read> _read = new _file_::read;
-        cli.onDrain.once([=](){ cli.free(); });
+        sck.onDrain.once([=](){ sck.free(); });
 
-        server.onConnect.once([=]( ssocket_t cli ){ process::poll::add([=](){
-            if(!cli.is_available() )    { cli.close(); return -1; }
-            if((*_read)(&cli)==1 )      { return 1; } 
+        server.onConnect.once([=]( ssocket_t sck ){ process::poll::add([=](){
+            if(!sck.is_available() )    { sck.close(); return -1; }
+            if((*_read)(&sck)==1 )      { return 1; } 
             if(  _read->state<=0 )      { return 1; }
-            cli.onData.emit(_read->data); return 1;
+            sck.onData.emit(_read->data); return 1;
         }) ; });
 
         process::task::add([=](){
-            server.onConnect.emit(cli); return -1;
+            server.onConnect.emit(sck); return -1;
         });
 
     }); server.poll( false ); return server; }
@@ -194,15 +194,15 @@ namespace tls {
 
     /*─······································································─*/
 
-    tls_t client( const tls_t& client ){ client.onOpen.once([=]( ssocket_t cli ){
+    tls_t client( const tls_t& client ){ client.onOpen.once([=]( ssocket_t sck ){
         ptr_t<_file_::read> _read = new _file_::read;
-        cli.onDrain.once([=](){ cli.free(); });
+        sck.onDrain.once([=](){ sck.free(); });
 
         process::poll::add([=](){
-            if(!cli.is_available() )    { cli.close(); return -1; }
-            if((*_read)(&cli)==1 )      { return 1; } 
+            if(!sck.is_available() )    { sck.close(); return -1; }
+            if((*_read)(&sck)==1 )      { return 1; } 
             if(  _read->state<=0 )      { return 1; }
-            cli.onData.emit(_read->data); return 1;
+            sck.onData.emit(_read->data); return 1;
         });
 
     }); return client; }

@@ -15,7 +15,6 @@
 /*────────────────────────────────────────────────────────────────────────────*/
 
 #include "import.h"
-#include "query.h"
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
@@ -25,16 +24,11 @@ namespace nodepp { namespace process {
     
     /*─······································································─*/
 
-    void start(){ process::signal::start(); }
+    void start(){}
 
     void start( int argc, char** args ){
         int i=0; do {
-            if(!regex::test(args[i],"^\\?") ) {
-                process::args.push(args[i]);
-            } else {
-                for( auto &x: query::parse( args[i] ).data() )
-                     process::env::set( x.first, x.second );
-            }
+            process::args.push(args[i]);
         }   while( i ++< argc - 1 ); process::start();
     }
 
@@ -55,7 +49,6 @@ namespace nodepp { namespace process {
     void stop(){
         while( !process::empty() ){
                 process::next();
-                onSIGNEXT.emit();
         }
     }
 
