@@ -16,7 +16,7 @@
     #include "event.h"
     #include "arduino/poll.cpp"
 #else
-    #error "pool.h is not supported by this OS"
+    #error "poll.h is not supported by this OS"
 #endif
 
 #endif
