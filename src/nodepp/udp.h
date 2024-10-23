@@ -50,8 +50,9 @@ public: udp_t() noexcept : obj(new NODE()) {}
     
     /*─······································································─*/
     
-    void     close() const noexcept { if( obj->state<0 ){ return; } obj->state=-1; onClose.emit(); }
-    bool is_closed() const noexcept { return obj == nullptr ? 1 : obj->state < 0; }
+    void     close() const noexcept { if( obj->state<=0 ){ return; } obj->state=-1; onClose.emit(); }
+    
+    bool is_closed() const noexcept { return obj == nullptr ? 1 : obj->state <= 0; }
     
     /*─······································································─*/
 
@@ -64,7 +65,7 @@ public: udp_t() noexcept : obj(new NODE()) {}
         if( dns::lookup(host).empty() )
           { _EERROR(onError,"dns couldn't get ip"); close(); return; }
             
-        socket_t sk = socket_t(); 
+        socket_t sk; 
                  sk.SOCK    = SOCK_DGRAM;
                  sk.IPPROTO = IPPROTO_UDP;
                  sk.socket( dns::lookup(host), port );
@@ -72,7 +73,7 @@ public: udp_t() noexcept : obj(new NODE()) {}
         
         if( sk.bind() < 0 ){ _EERROR(onError,"Error while binding UDP"); close(); return; }
         if( cb != nullptr ){ (*cb)(sk); } sk.onClose.on([=](){ self->close(); });
-        onOpen.emit(sk); sk.onOpen.emit(); onSocket.emit(sk); obj->func(sk);
+        onSocket.emit(sk); onOpen.emit(sk); sk.onOpen.emit(); obj->func(sk);
     }
 
     void listen( const string_t& host, int port, decltype(NODE::func) cb ) const noexcept { 
@@ -86,14 +87,14 @@ public: udp_t() noexcept : obj(new NODE()) {}
         if( dns::lookup(host).empty() )
           { _EERROR(onError,"dns couldn't get ip"); close(); return; }
 
-        socket_t sk = socket_t(); 
+        socket_t sk; 
                  sk.SOCK    = SOCK_DGRAM;
                  sk.IPPROTO = IPPROTO_UDP;
                  sk.socket( dns::lookup(host), port );
                  sk.set_sockopt( self->obj->agent );
     
         if( cb != nullptr ){ (*cb)(sk); } sk.onClose.on([=](){ self->close(); });
-        onOpen.emit(sk); sk.onOpen.emit(); onSocket.emit(sk); obj->func(sk);
+        onSocket.emit(sk); onOpen.emit(sk); sk.onOpen.emit(); obj->func(sk);
     }
 
     void connect( const string_t& host, int port, decltype(NODE::func) cb ) const noexcept { 
@@ -107,8 +108,8 @@ public: udp_t() noexcept : obj(new NODE()) {}
 namespace udp {
 
     udp_t server( const udp_t& server ){ server.onSocket([=]( socket_t cli ){
+        cli.onDrain.once([=](){ cli.free(); cli.onData.clear(); });
         ptr_t<_file_::read> _read = new _file_::read;
-        cli.onDrain.once([=](){ cli.free(); });
 
         server.onConnect.once([=]( socket_t cli ){ process::poll::add([=](){
             if(!cli.is_available() )    { cli.close(); return -1; }
@@ -133,8 +134,8 @@ namespace udp {
     /*─······································································─*/
 
     udp_t client( const udp_t& client ){ client.onOpen.once([=]( socket_t cli ){
+        cli.onDrain.once([=](){ cli.free(); cli.onData.clear(); });
         ptr_t<_file_::read> _read = new _file_::read;
-        cli.onDrain.once([=](){ cli.free(); });
 
         process::poll::add([=](){
             if(!cli.is_available() )    { cli.close(); return -1; }

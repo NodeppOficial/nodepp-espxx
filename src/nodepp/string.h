@@ -79,7 +79,7 @@ protected:
         
         if( empty() || x == y ){ return nullptr; } if( y>0 ){ y--; }
 
-        if( x < 0 ){ x = last() + x; } if( (ulong)x > last() ){ return nullptr; }
+        if( x < 0 ){ x = size() + x; } if( (ulong)x > last() ){ return nullptr; }
         if( y < 0 ){ y = last() + y; } if( (ulong)y > last() ){ y = last(); } 
                                        if( y < x )            { return nullptr; }
 
@@ -197,6 +197,7 @@ public:
     /*─······································································─*/
 
     ptr_t<int> find( const string_t& data, ulong offset=0 ) const noexcept {
+        if ( data.empty() ){ return nullptr; }
         ulong x=0; int n=0; ptr_t<int> pos ({ 0, 0 });
         for( ulong i=offset; i<buffer.size(); i++ ){ 
             if ( buffer[i] == data[x] ){
@@ -229,10 +230,6 @@ public:
         ulong n=size(); while( n-->0 ){ if( func((*this)[n]) ) erase(n); } return (*this);
     }
 
-    string_t copy() const noexcept { auto n_buffer = string::buffer(size());
-        ulong n=first(); for( auto x : *this ){ n_buffer[n]=x; n++; } return n_buffer;
-    }
-
     string_t reverse() const noexcept { auto n_buffer = copy();
         ulong n=size(); for( auto& x : *this ){ n--; n_buffer[n]=x; } return n_buffer;
     }
@@ -240,6 +237,8 @@ public:
     string_t replace( function_t<bool,char> func, char targ ) const noexcept {
         for( auto& x : *this ){ if(func(x)) x=targ; } return (*this); 
     }
+
+    string_t copy() const noexcept { return buffer.copy(); }
 
     /*─······································································─*/
 
@@ -253,15 +252,16 @@ public:
     string_t sort( function_t<bool,char,char> func ) const noexcept {
         queue_t<char> n_buffer;
 
-        for( ulong i=0; i<size(); i++ ){ 
+        for( ulong i=0; i<size(); i++ ){
             auto x = buffer[i]; auto n = n_buffer.first();
-            while( n!=nullptr ){ if( !func( x, n->data ) )
+            while( n!=nullptr ){ 
+               if( !func( x, n->data ) )
                  { n = n->next; continue; } break;
             }      n_buffer.insert( n, x );
         }          n_buffer.push('\0'); 
 
         return n_buffer.data();
-    } 
+    }
     
     /*─······································································─*/
 

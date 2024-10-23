@@ -66,7 +66,10 @@ public:
     
     /*─······································································─*/
 
-    T& operator[]( ulong i ) const noexcept { return value_[i]; }
+    T& operator[]( ulong i ) const noexcept { 
+        return size()==0 ? value_[i] : 
+               value_[ i%size() ]; 
+    }
     
     /*─······································································─*/
 
@@ -95,8 +98,9 @@ public:
           if( count() > 0 && size() == 0 )
             { return new T( *value_ ); }
         elif( count() > 0 && size() > 0 ){
-            auto n_buffer = ptr_t<T>( size() ); ulong n=0; 
-            for( auto x : *this ){ n_buffer[n]=x; n++; } return n_buffer;
+            auto n_buffer = ptr_t<T>( size() );
+            memcpy( &n_buffer, value_, size() );
+            return n_buffer;
         }   return nullptr;
     }
     

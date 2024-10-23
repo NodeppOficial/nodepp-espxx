@@ -24,7 +24,7 @@ protected:
         
         if( empty() || x == y ){ return nullptr; } if( y>0 ){ y--; }
 
-        if( x < 0 ){ x = last() + x; } if( (ulong)x > last() ){ return nullptr; }
+        if( x < 0 ){ x = size() + x; } if( (ulong)x > last() ){ return nullptr; }
         if( y < 0 ){ y = last() + y; } if( (ulong)y > last() ){ y = last(); } 
                                        if( y < x )            { return nullptr; }
 
@@ -139,6 +139,7 @@ public: array_t() noexcept {};
     /*─······································································─*/
 
     ptr_t<int> find( const array_t& data, ulong offset=0 ) const noexcept {
+        if ( data.empty() ){ return nullptr; }
         ulong x=0; int n=0; ptr_t<int> pos ({ 0, 0 });
         for( ulong i=offset; i<buffer.size(); i++ ){ 
             if ( buffer[i] == data[x] ){
@@ -171,10 +172,6 @@ public: array_t() noexcept {};
         ulong n=size(); while( n-->0 ){ if( func((*this)[n]) ) erase(n); } return (*this);
     }
 
-    array_t copy() const noexcept { auto n_buffer = ptr_t<T>(size());
-        ulong n=first(); for( auto& x : *this ){ n_buffer[n]=x; n++; } return n_buffer;
-    }
-
     array_t reverse() const noexcept { auto n_buffer = ptr_t<T>(size());
         ulong n=last(); for( auto& x : *this ){ n_buffer[n]=x; n--; } return n_buffer;
     }
@@ -182,6 +179,8 @@ public: array_t() noexcept {};
     array_t replace( function_t<bool,T> func, const T& targ ) const noexcept {
         for( auto& x : *this ){ if(func(x)) x=targ; } return (*this); 
     }
+
+    array_t copy() const noexcept { return buffer.copy(); }
     
     /*─······································································─*/
 
@@ -348,9 +347,11 @@ public: array_t() noexcept {};
 	    auto r = get_splice_range( start, end );
          if( r == nullptr ){ return nullptr; } 
 
-        auto n_buffer = ptr_t<T>(r[2]); for( ulong x=r[0],y=0; x<=r[1]; x++ )
-           { n_buffer[y++] = buffer[x]; }
+        auto n_buffer = ptr_t<T>(r[2]); 
+
+        for( ulong x=r[0],y=0; x<=r[1]; x++ ){ n_buffer[y++]=buffer[x]; }
         erase( r[0], r[0]+end ); insert( r[0], value ); return n_buffer;
+
     }
     
     /*─······································································─*/

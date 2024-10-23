@@ -53,7 +53,7 @@ protected:
         elif( flag == "r+" ){ _flag |= O_RDWR   | O_APPEND ;          }
         elif( flag == "w+" ){ _flag |= O_RDWR   | O_APPEND | O_CREAT; }
         elif( flag == "a+" ){ _flag |= O_RDWR   | O_APPEND ;          }
-        else                { _flag |= O_RDWR   | O_CREAT  ;          }
+        else                { _flag |= O_RDWR   ;                     }
         return  _flag;
     }
 
@@ -93,9 +93,9 @@ public: file_t() noexcept {}
 
     /*─······································································─*/
 
-    bool       is_closed() const noexcept { return obj->state <  0 ||  is_feof() || obj->fd == -1; }
-    bool    is_available() const noexcept { return obj->state >= 0 && !is_closed(); }
-    virtual bool is_feof() const noexcept { return obj->feof  == 0; }
+    bool    is_closed() const noexcept { return obj->state <  0 ||  is_feof() || obj->fd == -1; }
+    bool      is_feof() const noexcept { return obj->feof  <= 0 && obj->feof  != -2; }
+    bool is_available() const noexcept { return obj->state >= 0 && !is_closed(); }
 
     /*─······································································─*/
     
@@ -165,6 +165,13 @@ public: file_t() noexcept {}
 
     char read_char() const noexcept { return read(1)[0]; }
 
+    string_t read_until( char ch ) const noexcept {
+        auto gen = nodepp::_file_::until();
+        while( gen( this, ch ) == 1 )
+             { process::next(); }
+        return gen.data;
+    }
+
     string_t read_line() const noexcept {
         auto gen = nodepp::_file_::line();
         while( gen( this ) == 1 )
@@ -192,14 +199,18 @@ public: file_t() noexcept {}
 
     virtual int _read( char* bf, const ulong& sx ) const noexcept {
         if( is_closed() ){ return -1; } if( sx==0 ){ return 0; }
-        obj->feof =::read( obj->fd, bf, sx );
-        return is_blocked( obj->feof ) ? -2 : obj->feof;
+        obj->feof = ::read( obj->fd, bf, sx );
+        obj->feof = is_blocked(obj->feof) ?-2 : obj->feof;
+        if( obj->feof <= 0 && obj->feof != -2 ){ close(); } 
+        return obj->feof;
     }
 
     virtual int _write( char* bf, const ulong& sx ) const noexcept {
         if( is_closed() ){ return -1; } if( sx==0 ){ return 0; }
-        obj->feof=::write( obj->fd, bf, sx );
-        return is_blocked( obj->feof ) ? -2 : obj->feof;
+        obj->feof = ::write( obj->fd, bf, sx );
+        obj->feof = is_blocked(obj->feof) ?-2 : obj->feof;
+        if( obj->feof <= 0 && obj->feof != -2 ){ close(); }
+        return obj->feof;
     }
 
 };}

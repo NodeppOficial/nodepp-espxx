@@ -49,6 +49,7 @@ namespace nodepp { namespace process {
     void stop(){
         while( !process::empty() ){
                 process::next();
+                onSIGNEXT.emit();
         }
     }
 

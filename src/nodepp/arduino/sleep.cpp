@@ -20,6 +20,6 @@ namespace nodepp { namespace process {
 
     ulong now(){ return ::esp_timer_get_time() / 1000; }
 
-    void  yield(){ delay(0); }
+    void  yield(){ delay( TIMEOUT ); }
 
 }}

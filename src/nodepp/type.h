@@ -42,6 +42,11 @@ namespace nodepp { namespace type {
     
     /*─······································································─*/
 
+    template <typename T, typename U> struct is_different : true_type {};
+    template <typename T> struct is_different<T, T> : false_type {};
+    
+    /*─······································································─*/
+
     template <typename T> struct is_pointer : false_type {};
     template <typename T> struct is_pointer<T*> : true_type {};
         
@@ -298,8 +303,8 @@ namespace nodepp { namespace type {
 
     /*─······································································─*/
 
-    template<typename T> struct is_virtually_constructible {
-        static constexpr bool value = __has_trivial_constructor(T);
+    template<typename T> struct is_trivially_constructible {
+        static constexpr bool value = __is_trivially_constructible(T);
     };
 
     template<typename T> struct is_trivially_destructible {
@@ -314,8 +319,12 @@ namespace nodepp { namespace type {
         static constexpr bool value = __is_trivially_copyable(T);
     };
 
-    template<typename T> struct is_trivially_assignable {
+    template<typename T> struct is_trivially_assigned {
         static constexpr bool value = __has_trivial_assign(T);
+    };
+
+    template<typename T, typename V> struct is_trivially_assignable {
+        static constexpr bool value = __is_trivially_assignable(T,V);
     };
 
     /*─······································································─*/
@@ -362,9 +371,9 @@ namespace nodepp { namespace type {
     template< typename T, ulong N > 
     struct list { T buffer[N];
 
-        const T  operator []( ulong i ) const noexcept { return       buffer[i]; }
-        explicit operator bool()        const noexcept { return (bool)buffer;    }
-        const T* operator &()           const noexcept { return       buffer;    }
+        const T  operator []( ulong i ) const noexcept { return       buffer[i%N]; }
+        explicit operator bool()        const noexcept { return (bool)buffer;      }
+        const T* operator &()           const noexcept { return       buffer;      }
 
         /*─······································································─*/
 

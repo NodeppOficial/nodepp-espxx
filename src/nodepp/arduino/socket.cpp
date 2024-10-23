@@ -24,7 +24,18 @@ namespace nodepp { namespace _socket_ {
 
     void start_device(){ static bool sockets=false; 
         if( sockets == false ){
-          } sockets =  true;
+
+            process::onSIGEXIT([=](){
+                #ifdef SIGPIPE
+                    process::signal::unignore( SIGPIPE );
+                #endif 
+            });
+            
+                #ifdef SIGPIPE
+                    process::signal::ignore( SIGPIPE );
+                #endif
+
+        }   sockets = true;
     }
 
 }}
@@ -35,8 +46,9 @@ namespace nodepp {
 
 struct agent_t {
     bool  reuse_address = 1;
-    uint  recv_timeout  = 0;
-    uint  send_timeout  = 0;
+    uint  conn_timeout  = 10000;
+    uint  recv_timeout  = 120000;
+    uint  send_timeout  = 120000;
     ulong buffer_size   = CHUNK_SIZE;
     bool  reuse_port    = 1;
     bool  keep_alive    = 0;
@@ -52,6 +64,8 @@ protected:
 
     struct DONE {
         socklen_t addrlen; bool srv=0; socklen_t len;
+        ulong recv_timeout=0; ulong send_timeout=0;
+        ulong conn_timeout=0;
         SOCKADDR server_addr, client_addr;
     };  ptr_t<DONE> skt = new DONE();
     
@@ -59,7 +73,7 @@ protected:
 
     virtual bool is_blocked( int& c ) const noexcept { 
         if ( c >= 0 ){ return 0; } auto error = os::error(); 
-        if ( error == EISCONN ){ c =0; return 0; } return (
+        if ( error == EISCONN ){ c=0; return 0; } return (
              error == EWOULDBLOCK || error == EINPROGRESS ||
              error == EALREADY    || error == EAGAIN      ||
              error == ECONNRESET
@@ -74,23 +88,48 @@ public: socket_t() noexcept { _socket_::start_device(); }
     
     /*─······································································─*/
 
-    int set_recv_buff( ulong en ) const noexcept { int c;
+    ulong get_recv_timeout() const noexcept { 
+        return skt->recv_timeout==0 ? process::millis() : skt->recv_timeout; 
+    }
+
+    ulong get_send_timeout() const noexcept { 
+        return skt->send_timeout==0 ? process::millis() : skt->send_timeout;
+    }
+
+    ulong get_conn_timeout() const noexcept { 
+        return skt->conn_timeout==0 ? process::millis() : skt->conn_timeout;
+    }
+    
+    /*─······································································─*/
+
+    ulong set_conn_timeout( ulong time ) const noexcept { 
+        if( time == 0 ){ skt->conn_timeout = 0; return 0; }
+        skt->conn_timeout = process::millis() + time; return time; 
+    }
+
+    ulong set_recv_timeout( ulong time ) const noexcept { 
+        if( time == 0 ){ skt->recv_timeout = 0; return 0; }
+        TIMEVAL en; memset( &en, 0, sizeof(en) ); en.tv_sec = time / 1000; en.tv_usec = 0; int c;
+        while( is_blocked( c=setsockopt( obj->fd, SOL_SOCKET, SO_RCVTIMEO, (char*)&en, sizeof(en) ) ) )
+             { process::next(); } skt->recv_timeout = process::millis() + time; return time; 
+    }
+
+    ulong set_send_timeout( ulong time ) const noexcept { 
+        if( time == 0 ){ skt->send_timeout = 0; return 0; }
+        TIMEVAL en; memset( &en, 0, sizeof(en) ); en.tv_sec = time / 1000; en.tv_usec = 0; int c;
+        while( is_blocked( c=setsockopt( obj->fd, SOL_SOCKET, SO_SNDTIMEO, (char*)&en, sizeof(en) ) ) )
+             { process::next(); } skt->send_timeout = process::millis() + time; return time; 
+    }
+    
+    /*─······································································─*/
+
+    int set_recv_buff( uint en ) const noexcept { int c;
         while( is_blocked( c=setsockopt( obj->fd, SOL_SOCKET, SO_RCVBUF, (char*)&en, sizeof(en) ) ) )
              { process::next(); } return c;
     }
 
-    int set_send_buff( ulong en ) const noexcept { int c;
+    int set_send_buff( uint en ) const noexcept { int c;
         while( is_blocked( c=setsockopt( obj->fd, SOL_SOCKET, SO_SNDBUF, (char*)&en, sizeof(en) ) ) )
-             { process::next(); } return c;
-    }
-
-    int set_recv_timeout( uint time ) const noexcept { int c; TIMEVAL en; en.tv_sec=time; en.tv_usec=0;
-        while( is_blocked( c=setsockopt( obj->fd, SOL_SOCKET, SO_RCVTIMEO, (char*)&en, sizeof(en) ) ) )
-             { process::next(); } return c; 
-    }
-
-    int set_send_timeout( uint time ) const noexcept { int c; TIMEVAL en; en.tv_sec=time; en.tv_usec=0;
-        while( is_blocked( c=setsockopt( obj->fd, SOL_SOCKET, SO_SNDTIMEO, (char*)&en, sizeof(en) ) ) )
              { process::next(); } return c;
     }
 
@@ -143,16 +182,6 @@ public: socket_t() noexcept { _socket_::start_device(); }
 
     int get_send_buff() const noexcept { int c, en; socklen_t size = sizeof(en);
         while( is_blocked( c=getsockopt(obj->fd, SOL_SOCKET, SO_SNDBUF, (char*)&en, &size) ) )
-             { process::next(); } return c==0 ? en : c;
-    }
-
-    int get_recv_timeout() const noexcept { int c, en; socklen_t size = sizeof(en);
-        while( is_blocked( c=getsockopt(obj->fd, SOL_SOCKET, SO_RCVTIMEO, (char*)&en, &size) ) )
-             { process::next(); } return c==0 ? en : c;
-    }
-
-    int get_send_timeout() const noexcept { int c, en; socklen_t size = sizeof(en);
-        while( is_blocked( c=getsockopt(obj->fd, SOL_SOCKET, SO_SNDTIMEO, (char*)&en, &size) ) )
              { process::next(); } return c==0 ? en : c;
     }
 
@@ -223,19 +252,20 @@ public: socket_t() noexcept { _socket_::start_device(); }
     
     /*─······································································─*/
 
-    int set_timeout( uint en ) const noexcept {
-        if( set_recv_timeout( en )<0 ){ return -1; } 
-        if( set_send_timeout( en )<0 ){ return -1; } return 1; 
-    }
+    bool is_server() const noexcept { return skt->srv; }
     
     /*─······································································─*/
 
-    bool is_server() const noexcept { return skt->srv; }
+    ulong set_timeout( ulong time ) const noexcept {
+        set_recv_timeout( time ); 
+        set_send_timeout( time ); return time;
+    }
     
     /*─······································································─*/
 
     void set_sockopt( agent_t opt ) const noexcept { 
         set_reuse_address( opt.reuse_address );
+        set_conn_timeout ( opt.conn_timeout  );
         set_recv_timeout ( opt.recv_timeout  );
         set_send_timeout ( opt.send_timeout  );
         set_buffer_size  ( opt.buffer_size   );
@@ -251,6 +281,7 @@ public: socket_t() noexcept { _socket_::start_device(); }
         opt.reuse_address = get_reuse_address();
         opt.recv_timeout  = get_recv_timeout();
         opt.send_timeout  = get_send_timeout();
+        opt.conn_timeout  = get_conn_timeout();
         opt.buffer_size   = get_buffer_size();
     #ifdef SO_REUSEPORT
         opt.reuse_port    = get_reuse_port();
@@ -264,7 +295,7 @@ public: socket_t() noexcept { _socket_::start_device(); }
     
     virtual ~socket_t() noexcept {
         if( obj.count() > 1 || obj->fd < 3 ){ return; } 
-        if( obj->state == -2 ){ return; } free();
+        if( obj->state ==-2 ){ return; } free();
     }
     
     /*─······································································─*/
@@ -279,7 +310,7 @@ public: socket_t() noexcept { _socket_::start_device(); }
     virtual void free() const noexcept {
         if( obj->state == -3 && obj.count() > 1 ){ resume(); return; }
         if( obj->state == -2 ){ return; } obj->state = -2;
-        ::shutdown(obj->fd,SHUT_RDWR); ::close( obj->fd ); 
+        ::shutdown(obj->fd,SHUT_RDWR); ::close( obj->fd );
         close(); onClose.emit();
     }
 
@@ -317,21 +348,23 @@ public: socket_t() noexcept { _socket_::start_device(); }
     
     /*─······································································─*/
 
-    int _connect() const noexcept { int c=0; if( skt->srv == 1 ){ return -1; }
-        return is_blocked( c=::connect( obj->fd, &skt->server_addr, skt->addrlen ) ) ? -2 : c;
-    }
-
     int _accept() const noexcept { int c=0; if( skt->srv == 0 ){ return -1; }
         return is_blocked( c=::accept( obj->fd, &skt->server_addr, &skt->addrlen ) ) ? -2 : c;
     }
 
-    int _bind() const noexcept { int c=0; skt->srv = 1;
+    int _connect() const noexcept { int c=0;
+        if( process::millis() > get_conn_timeout() || skt->srv == 1 ){ return -1; }
+        return is_blocked( c=::connect( obj->fd, &skt->server_addr, skt->addrlen ) ) ? -2 : c;
+    }
+
+    int _bind() const noexcept {
+        if( process::millis() > get_conn_timeout() ){ return -1; } int c=0; skt->srv = 1;
         return is_blocked( c=::bind( obj->fd, &skt->server_addr, skt->addrlen ) ) ? -2 : c;
     }
 
-    int _listen() const noexcept { 
-        int c=0; if( skt->srv == 0 ){ return -1; }
-        return is_blocked( c=::listen( obj->fd, MAX_SOCKET ) ) ? -2 : c;
+    int _listen() const noexcept { int c = 0;
+        if( process::millis() > get_conn_timeout() || skt->srv == 0 ){ return -1; }
+        return is_blocked( c=::listen( obj->fd, MAX_FILENO ) ) ? -2 : c;
     }
 
     /*─······································································─*/
@@ -355,25 +388,33 @@ public: socket_t() noexcept { _socket_::start_device(); }
     /*─······································································─*/
 
     virtual int _read( char* bf, const ulong& sx ) const noexcept {
-        if ( is_closed() ){ return -1; } if( sx==0 ){ return 0; } if( SOCK != SOCK_DGRAM ){
+        if ( process::millis() > get_recv_timeout() || is_closed() )
+           { close(); return -1; } if ( sx==0 ) { return 0; } 
+        if ( SOCK != SOCK_DGRAM ){
             obj->feof = ::recv( obj->fd, bf, sx, 0 );
-            obj->feof = is_blocked(obj->feof) ? -2 : obj->feof;
+            obj->feof = is_blocked(obj->feof) ?-2 : obj->feof;
+            if( obj->feof <= 0 && obj->feof != -2 ){ close(); }
             return obj->feof;
         } else { SOCKADDR* cli; if( skt->srv==1 ) cli = &skt->client_addr; else cli = &skt->server_addr;
-            obj->feof =::recvfrom( obj->fd, bf, sx, 0, cli, &skt->len );
-            obj->feof = is_blocked(obj->feof) ? -2 : obj->feof;
+            obj->feof = ::recvfrom( obj->fd, bf, sx, 0, cli, &skt->len );
+            obj->feof = is_blocked(obj->feof) ?-2 : obj->feof;
+            if( obj->feof <= 0 && obj->feof != -2 ){ close(); }
             return obj->feof;
         }   return -1;
     }
     
     virtual int _write( char* bf, const ulong& sx ) const noexcept {
-        if( is_closed() ){ return -1; } if( sx==0 ){ return 0; } if( SOCK != SOCK_DGRAM ){
-            obj->feof =::send( obj->fd, bf, sx, 0 );
-            obj->feof = is_blocked(obj->feof) ? -2 : obj->feof;
+        if ( process::millis() > get_send_timeout() || is_closed() )
+           { close(); return -1; } if ( sx==0 ) { return 0; } 
+        if ( SOCK != SOCK_DGRAM ){
+            obj->feof = ::send( obj->fd, bf, sx, 0 );
+            obj->feof = is_blocked(obj->feof) ?-2 : obj->feof;
+            if( obj->feof <= 0 && obj->feof != -2 ){ close(); }
             return obj->feof;
         } else { SOCKADDR* cli; if( skt->srv==1 ) cli = &skt->client_addr; else cli = &skt->server_addr;
-            obj->feof =::sendto( obj->fd, bf, sx, 0, cli, skt->len );
-            obj->feof = is_blocked(obj->feof) ? -2 : obj->feof;
+            obj->feof = ::sendto( obj->fd, bf, sx, 0, cli, skt->len );
+            obj->feof = is_blocked(obj->feof) ?-2 : obj->feof;
+            if( obj->feof <= 0 && obj->feof != -2 ){ close(); }
             return obj->feof;
         }   return -1;
     } 

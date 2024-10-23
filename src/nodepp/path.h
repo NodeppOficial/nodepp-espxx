@@ -159,9 +159,8 @@ namespace {
     /*─······································································─*/
 
     string_t extname( const string_t& path ){ string_t m;
-        regex_t reg("\\.\\w*$"); if( !reg.test( path ) ) 
-          { return m; } m = reg.match( path ); 
-            return regex::replace_all( m, "\\.", "" );
+        regex_t reg("\\.\\w+$"); if( !reg.test( path ) ) 
+          { return m; } return reg.match( path ).slice(1);
     }
     
     /*─······································································─*/
@@ -205,20 +204,19 @@ namespace {
 
     /*─······································································─*/
 
-    string_t format( path_t* obj=nullptr ) { string_t _path;
+    string_t format( path_t& obj ) { string_t _path;
 
-        if(  obj == nullptr )   { return _path;       }
-        if( !obj->path.empty() ){ return obj->path;   }
+        if( !obj.path.empty() ){ return obj.path;   }
         
-        if( !obj->root.empty() ){ _path += obj->root; }
-        else                    { _path += root;      }
+        if( !obj.root.empty() ){ _path += obj.root; }
+        else                   { _path += root;     }
 
-        if( !obj->dir .empty() ){ _path += obj->dir;  }
-        if( !obj->base.empty() ){ _path += obj->base; }
+        if( !obj.dir .empty() ){ _path += obj.dir;  }
+        if( !obj.base.empty() ){ _path += obj.base; }
 
         else {
-            if( !obj->name.empty() ){ _path += obj->name + string::to_string("."); }
-            if( !obj->ext .empty() ){ _path += obj->ext; }
+            if( !obj.name.empty() ){ _path += obj.name + string::to_string("."); }
+            if( !obj.ext .empty() ){ _path += obj.ext; }
         }
         
         return _path;

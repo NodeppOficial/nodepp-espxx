@@ -17,14 +17,31 @@
 namespace nodepp { template< class... A > class event_t { 
 protected:
 
-    using NODE = function_t<int,A...>;
-    ptr_t<queue_t<NODE>> obj;
+    using NODE = function_t<bool,A...>; ptr_t<queue_t<NODE>> obj;
 
 public: event_t() noexcept : obj( new queue_t<NODE>() ) {}
     
     /*─······································································─*/
 
     void* operator()( function_t<void,A...> func ) const noexcept { return on(func); }
+    
+    /*─······································································─*/
+
+    void off( void* address ) const noexcept { process::clear( address ); }
+
+    void* once( function_t<void,A...> func ) const noexcept {
+        if( obj->size() >= MAX_EVENTS ) { return nullptr; }
+        ptr_t<bool> out = new bool(1); obj->push([=]( A... args ){
+            if( *out != 0 ){ func( args... ); } return *out;
+        }); return &out;
+    }
+
+    void* on( function_t<void,A...> func ) const noexcept {
+        if( obj->size() >= MAX_EVENTS ) { return nullptr; }
+        ptr_t<bool> out = new bool(1); obj->push([=]( A... args ){
+            if( *out != 0 ){ func( args... ); } return *out;
+        }); return &out;
+    }
     
     /*─······································································─*/
 
@@ -36,34 +53,9 @@ public: event_t() noexcept : obj( new queue_t<NODE>() ) {}
 
     void emit( const A&... args ) const noexcept {
         auto x = obj->first(); while( x != nullptr ){
-        auto y = x->next; switch( x->data( args... ) ){
-            case  0: obj->erase(x); break;
-            case -1: obj->erase(x); break;
-            case  1:                break;
-        } x = y; }
-    }
-    
-    /*─······································································─*/
-
-    void off( void* address ) const noexcept { 
-        if( !address ){ return; }
-        *((int*)address) = -1; 
-    }
-
-    void* once( function_t<void,A...> func ) const noexcept {
-        ptr_t<int> out = new int(0);
-        obj->push([=]( A... args ){
-            if( *out >= 0 ) func( args... );
-            return *out;
-        }); return &out;
-    }
-
-    void* on( function_t<void,A...> func ) const noexcept {
-        ptr_t<int> out = new int(1);
-        obj->push([=]( A... args ){
-            if( *out >= 0 ) func( args... );
-            return *out;
-        }); return &out;
+        auto y = x->next; 
+            if( !x->data( args... ) ){ obj->erase(x); }
+        x = y; }
     }
     
 };}

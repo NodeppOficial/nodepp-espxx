@@ -22,12 +22,10 @@ protected:
         string_t msg;
     };  ptr_t<NODE> obj;
 
-public:
+public: debug_t() noexcept : obj(new NODE()) { }
 
     virtual ~debug_t() noexcept { 
-        if( obj.count() == 2 ){ 
-	          console::log( obj->msg, "closed" );  
-        }
+        if ( obj.count() == 1 ){ console::log( obj->msg, "closed" ); }
     }
     
     /*─······································································─*/
@@ -35,10 +33,8 @@ public:
     debug_t( const string_t& msg ) noexcept : obj(new NODE()) {
         obj->msg = msg; 
         auto inp = type::bind( this );
-	      console::log( obj->msg, "open" );
+	               console::log( obj->msg, "open" );
     }
-    
-    debug_t() noexcept : obj(new NODE()) {}
     
     /*─······································································─*/
 

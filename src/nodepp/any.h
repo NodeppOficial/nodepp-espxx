@@ -17,18 +17,19 @@
 namespace nodepp { class any_t {
 public: any_t() noexcept {};
     
-    any_t( const char* f ) noexcept : any_ptr( new any_impl<string_t>(string::to_string(f)) ) {}
+    any_t( const char* f ) noexcept { set( string::to_string(f) ); }
     
     template< class T > 
-    any_t( const T& f ) noexcept : any_ptr( new any_impl<T>(f) ) {}
+    any_t( const T& f ) noexcept { set( f ); }
 
     virtual ~any_t() noexcept = default;
     
     /*─······································································─*/
 
-    bool has_value() const noexcept { return any_ptr.has_value(); }
+    uint type_size() const noexcept { return any_sz ==nullptr ? 0 : *any_sz; }
+    bool     empty() const noexcept { return type_size() ==0; }
+    bool has_value() const noexcept { return type_size() !=0; }
     ulong    count() const noexcept { return any_ptr.count(); }
-    bool     empty() const noexcept { return any_ptr.null(); }
     
     /*─······································································─*/
 
@@ -40,14 +41,19 @@ public: any_t() noexcept {};
     /*─······································································─*/
 
     template< class T >
-    void set( const T& f ) noexcept { any_ptr = new any_impl<T>(f); }
+    void set( const T& f ) noexcept { 
+        any_sz  = new uint(sizeof(T));
+        any_ptr = new any_impl<T>(f); 
+    }
 
     void free() const noexcept { any_ptr.free(); }
 
     template< class T >
     T get() const { 
         T any; if( !has_value() )
-            process::error("any is null");
+            process::error("any_t is null");
+        if( *any_sz != sizeof(T) )
+            process::error("any_t incompatible sizetype");
         any_ptr->get((void*)&any); return any; 
     }
 
@@ -83,6 +89,8 @@ private:
     /*─······································································─*/
     
     ptr_t<any_base> any_ptr;
+    ptr_t<uint>     any_sz;
+
 };}
 
 /*────────────────────────────────────────────────────────────────────────────*/

@@ -11,6 +11,8 @@
 
 #define NODEPP_GENERATOR
 
+/*────────────────────────────────────────────────────────────────────────────*/
+
 #if !defined(GENERATOR_TIMER) && defined(NODEPP_TIMER) && defined(NODEPP_GENERATOR)
     #define  GENERATOR_TIMER
 namespace nodepp { namespace _timer_ {
@@ -63,6 +65,34 @@ namespace nodepp { namespace _timer_ {
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
+#if !defined(GENERATOR_PROMISE) && defined(NODE_PROMISE) && defined(NODEPP_GENERATOR)
+    #define  GENERATOR_PROMISE
+namespace nodepp { namespace _promise_ {
+
+    GENERATOR( resolve ){ public:
+
+        template< class T, class U, class V > 
+        gnEmit( ptr_t<bool> state, const T& func, const U& res, const V& rej ){
+        gnStart; func( res, rej ); 
+            while( state!=nullptr && *state!=0 ) { coNext; }
+        gnStop
+        }
+
+        template< class T, class U > 
+        gnEmit( ptr_t<bool> state, const T& func, const U& res ){
+        gnStart; func( res ); 
+            while( state!=nullptr && *state!=0 ) { coNext; }
+        gnStop
+        }
+
+    };
+
+}}  
+#undef NODEPP_GENERATOR
+#endif
+
+/*────────────────────────────────────────────────────────────────────────────*/
+
 #if !defined(GENERATOR_FILE) && defined(NODEPP_FILE) && defined(NODEPP_GENERATOR)
     #define  GENERATOR_FILE
 namespace nodepp { namespace _file_ {
@@ -77,6 +107,7 @@ namespace nodepp { namespace _file_ {
         int      state; 
 
     template< class T > gnEmit( T* str, ulong size=CHUNK_SIZE ){
+        if( str->is_closed() ){ return -1; }
     gnStart state=0; d=0; data.clear(); str->flush();
 
         if(!str->is_available() ){ coEnd; } r = str->get_range();
@@ -89,11 +120,13 @@ namespace nodepp { namespace _file_ {
 
         if( data.empty() ) do {
             state=str->_read( str->get_buffer_data(), min(d,size) );
-        if( true /* state==-2 */ ){ coNext; } } while ( state==-2 );
+        if( state==-2 ){ coNext; } } while ( state==-2 );
         
         if( state > 0 ){
-            data = string_t( str->get_buffer_data(), (ulong) state );
-        }   state = data.size(); str->del_borrow();
+            data  = string_t( str->get_buffer_data(), (ulong) state );
+        }   state = min( data.size(), size ); str->del_borrow();
+
+        str->set_borrow( data.splice( size, data.size() ) );
         
     gnStop
     }};
@@ -109,16 +142,44 @@ namespace nodepp { namespace _file_ {
         int      state;
         
     template< class T > gnEmit( T* str, const string_t& msg ){
+        if( str->is_closed() ){ return -1; }
     gnStart state=0; data=0; str->flush();
 
         if(!str->is_available() || msg.empty() ){ coEnd; }
         if( b.empty() ){ b = msg; }
         
         do { do { state=str->_write( b.data()+data, b.size()-data );
-             if ( true /* state==-2 */ )    { coNext;        }
+             if ( state==-2 ){ coNext; }
         } while ( state==-2 ); if( state>0 ){ data += state; }
         } while ( state>=0 && data<b.size() ); b.clear();
 
+    gnStop
+    }};
+
+    /*─······································································─*/
+
+    GENERATOR( until ){ 
+    private:
+        _file_::read _read;
+        string_t     s;
+
+    public: 
+        string_t  data ;  
+        ulong     state; 
+
+    template< class T > gnEmit( T* str, char ch ){
+        if( str->is_closed() ){ return -1; }
+    gnStart state=1; s.clear(); data.clear(); str->flush();
+
+        while( str->is_available() ){
+        while( _read(str) == 1 ){ coNext; }
+           if( _read.state<= 0 ){ break; } state = 1; s += _read.data; 
+          for( auto &x: s )     { if( x == ch ){ break; } state++; }
+           if( state<=s.size() ){ break; }
+        }      str->set_borrow(s);
+
+        data = str->get_borrow().splice( 0, state );
+    
     gnStop
     }};
 
@@ -134,6 +195,7 @@ namespace nodepp { namespace _file_ {
         ulong     state; 
 
     template< class T > gnEmit( T* str ){
+        if( str->is_closed() ){ return -1; }
     gnStart state=1; s.clear(); data.clear(); str->flush();
 
         while( str->is_available() ){
@@ -157,6 +219,42 @@ namespace nodepp { namespace _file_ {
 #if !defined(GENERATOR_STREAM) && defined(NODEPP_STREAM) && defined(NODEPP_GENERATOR)
     #define  GENERATOR_STREAM 
 namespace nodepp { namespace _stream_ {
+
+    GENERATOR( duplex ){ 
+    private:
+
+        _file_::write _write1, _write2;
+        _file_::read  _read1 , _read2;
+
+    public:
+
+        template< class T, class V > gnEmit( const T& inp, const V& out ){
+        gnStart inp.onPipe.emit(); out.onPipe.emit(); coYield(1);
+
+            while( inp.is_available() && out.is_available() ){
+            while( _read1(&inp) ==1 )            { coGoto(2); }
+               if( _read1.state <=0 )            { break;  }
+            while( _write1(&out,_read1.data)==1 ){ coNext; }
+               if( _write1.state<=0 )            { break;  }
+                    inp.onData.emit( _read1.data );
+            }       inp.close(); out.close();
+            
+            coEnd; coYield(2);
+
+            while( inp.is_available() && out.is_available() ){
+            while( _read2(&out) ==1 )            { coGoto(1); }
+               if( _read2.state <=0 )            { break;  }
+            while( _write2(&inp,_read2.data)==1 ){ coNext; }
+               if( _write2.state<=0 )            { break;  }
+                    out.onData.emit( _read2.data );
+            }       out.close(); inp.close();
+
+        gnStop
+        }
+
+    };
+    
+    /*─······································································─*/
 
     GENERATOR( pipe ){ 
     private:
@@ -225,6 +323,28 @@ namespace nodepp { namespace _stream_ {
     };
     
 }}
+#undef NODEPP_GENERATOR
+#endif
+
+/*────────────────────────────────────────────────────────────────────────────*/
+
+#if !defined(GENERATOR_POLL) && defined(NODEPP_SOCKET) && defined(NODEPP_GENERATOR)
+    #define  GENERATOR_POLL
+namespace nodepp { namespace _poll_ {
+
+    GENERATOR( poll ){ public:
+
+        template< class V, class T, class U > 
+        gnEmit( V ctx, T self, U cb ){
+            if( ctx.is_closed() ){ return -1; }
+        gnStart coNext;
+            self->onSocket.emit( ctx ); cb(ctx);
+        gnStop
+        }
+
+    };
+
+}}  
 #undef NODEPP_GENERATOR
 #endif
 
@@ -434,153 +554,98 @@ namespace nodepp { namespace _zlib_ {
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-#if !defined(GENERATOR_WS) && defined(NODEPP_WS) && defined(NODEPP_GENERATOR)
+#if !defined(GENERATOR_WS) && defined(NODEPP_GENERATOR) && ( defined(NODEPP_WS) || defined(NODEPP_WSS) )
     #define  GENERATOR_WS
-    #include "crypto.h"
-namespace nodepp { 
-
-    bool WSServer( http_t cli ) {
-        auto data = cli.read(); cli.set_borrow( data ); int c=0;
-        
-        while(( c=cli.read_header() )>0 ){ process::next(); }
-           if(  c == -1  ){ return 0; }
-
-        if( !cli.headers["Sec-Websocket-Key"].empty() ){
-
-            string_t sec = cli.headers["Sec-Websocket-Key"];
-            string_t key = sec + SECRET;
-
-                auto sha = crypto::hash::SHA1();  sha.update(key);
-                auto b64 = crypto::enc::BASE64(); b64.update(sha.get());
-                auto enc = b64.get().slice(0,-1);
-
-            cli.write_header( 101, {{
-                { "Sec-Websocket-Accept", enc },
-                { "Connection", "Upgrade" },
-                { "Upgrade", "Websocket" }
-            }});
-
-            cli.stop();             return 1;
-        }   cli.set_borrow( data ); return 0;
-
-    }
-    
-    /*─······································································─*/
-
-    template< class T > socket_t WSClient( const T& fetch, const string_t& key ) {
-        auto res = fetch.await(); if( !res.has_value() ) _ERROR( res.error().what() );
-        auto cli = res.value();
-
-        if( cli.status != 101 ){ 
-            _EERROR(cli.onError,string::format("Can't connect to WS Server -> status %d",cli.status)); 
-            cli.close(); return cli; 
-        }
-
-        if(!cli.headers["Sec-Websocket-Accept"].empty() ){
-
-            string_t dta = cli.headers["Sec-Websocket-Accept"];
-            string_t sec = key + SECRET;
-
-                auto sha = crypto::hash::SHA1();  sha.update(sec);
-                auto b64 = crypto::enc::BASE64(); b64.update(sha.get());
-                auto enc = b64.get().slice(0,-1);
-
-        if( dta != enc ){ _ERROR("secret key does not match"); }
-            cli.stop();
-        }   return cli;
-
-    }
-
-}
-#undef NODEPP_GENERATOR
-#endif
-
-/*────────────────────────────────────────────────────────────────────────────*/
-
-#if !defined(GENERATOR_WSS) && defined(NODEPP_WSS) && defined(NODEPP_GENERATOR)
-    #define  GENERATOR_WSS
-    #include "crypto.h"
-namespace nodepp {
-    
-    bool WSSServer( https_t cli ) {
-        auto data = cli.read(); cli.set_borrow( data ); int c=0;
-        
-        while(( c=cli.read_header() )>0 ){ process::next(); }
-           if(  c == -1  ){ return 0; }
-
-        if( !cli.headers["Sec-Websocket-Key"].empty() ){
-
-            string_t sec = cli.headers["Sec-Websocket-Key"];
-            string_t key = sec + SECRET;
-
-                auto sha = crypto::hash::SHA1();  sha.update(key);
-                auto b64 = crypto::enc::BASE64(); b64.update(sha.get());
-                auto enc = b64.get().slice(0,-1);
-
-            cli.write_header( 101, {{
-                { "Sec-Websocket-Accept", enc },
-                { "Connection", "Upgrade" },
-                { "Upgrade", "Websocket" }
-            }});
-
-            cli.stop();             return 1;
-        }   cli.set_borrow( data ); return 0;
-
-    }
-    
-    /*─······································································─*/
-
-    template< class T > ssocket_t WSSClient( const T& fetch, const string_t& key ) {
-        auto res = fetch.await(); if( !res.has_value() ) _ERROR( res.error().what() );
-        auto cli = res.value();
-
-        if( cli.status != 101 ){ 
-            _EERROR(cli.onError,string::format("Can't connect to WS Server -> status %d",cli.status)); 
-            cli.close(); return cli; 
-        }
-
-        if(!cli.headers["Sec-Websocket-Accept"].empty() ){
-
-            string_t dta = cli.headers["Sec-Websocket-Accept"];
-            string_t sec = key + SECRET;
-
-                auto sha = crypto::hash::SHA1();  sha.update(sec);
-                auto b64 = crypto::enc::BASE64(); b64.update(sha.get());
-                auto enc = b64.get().slice(0,-1);
-
-        if( dta != enc ){ _ERROR("secret key does not match"); }   
-            cli.stop();
-        }   return cli;
-
-    }
-
-}
-#undef NODEPP_GENERATOR
-#endif
-
-/*────────────────────────────────────────────────────────────────────────────*/
-
-#if !defined(GENERATOR_SWS) && ( defined(NODEPP_WS) || defined(NODEPP_WSS) )
-    #define  GENERATOR_SWS
     #include "encoder.h"
-namespace nodepp {
+    #include "crypto.h" 
+namespace nodepp { namespace _ws_ {
 
     struct ws_frame_t {
-        bool  FIN = 1; //1b
-        uint  RSV = 0; //3b
-        uint  OPC = 1; //4b
-        bool  MSK = 1; //1b
+        bool  FIN;     //1b
+        uint  RSV;     //3b
+        uint  OPC;     //4b
+        bool  MSK;     //1b
         char  KEY [4]; //4B
-        ulong LEN = 0; //64b
+        ulong LEN;     //64b
     };
+    
+    /*─······································································─*/
+
+    template< class T > bool server( T& cli ) {
+        auto data = cli.read(); cli.set_borrow( data ); int c=0;
+        
+        while(( c=cli.read_header() )>0 ){ process::next(); }
+           if(  c == -1  ){ return 0; }
+
+        if( !cli.headers["Sec-Websocket-Key"].empty() ){
+
+            string_t sec = cli.headers["Sec-Websocket-Key"];
+                auto sha = crypto::hash::SHA1(); sha.update( sec + SECRET );
+            string_t enc = encoder::base64::get( crypto::hex2buff( sha.get() ) );
+
+            cli.write_header( 101, {{
+                { "Sec-Websocket-Accept", enc },
+                { "Connection", "Upgrade" },
+                { "Upgrade", "Websocket" }
+            }});
+
+            cli.stop();             return 1;
+        }   cli.set_borrow( data ); return 0;
+    }
+    
+    /*─······································································─*/
+
+    template< class T > bool client( T& cli, string_t url ) {
+        string_t hsh = crypto::genkey("abcdefghiABCDEFGHI0123456789",22);
+        string_t key = string::format("%s==",hsh.data()); int c = 0;
+
+        header_t header ({
+            { "Upgrade", "websocket" },
+            { "Connection", "Upgrade" },
+            { "Sec-Websocket-Key", key },
+            { "Sec-Websocket-Version", "13" }
+        });
+
+        cli.write_header( "GET", url::path(url), "HTTP/1.0", header );
+
+        while(( c=cli.read_header() )>0 ){ process::next(); } if( c!=0 ){
+            _EERROR(cli.onError,"Could not connect to server");
+            cli.close(); return false; 
+        }
+
+        if( cli.status != 101 ){ 
+            _EERROR(cli.onError,string::format("Can't connect to WS Server -> status %d",cli.status)); 
+            cli.close(); return false; 
+        }
+
+        if(!cli.headers["Sec-Websocket-Accept"].empty() ){
+
+            string_t dta = cli.headers["Sec-Websocket-Accept"];
+                auto sha = crypto::hash::SHA1(); sha.update( key + SECRET );
+            string_t enc = encoder::base64::get( crypto::hex2buff( sha.get() ) );
+
+            if( dta != enc ){ 
+                _ERROR("secret key does not match"); 
+                cli.close(); return false; 
+            }   cli.stop();
+
+        }   
+        
+        return true;
+    }
 
     /*─······································································─*/
 
-    string_t write_ws_frame( char* /*unused*/, const ulong& sx ){
+    string_t write_ws_frame( char* bf, const ulong& sx ){
 
         auto bfx = ptr_t<char>( 64, '\0' ); uint idx = 0;
         auto byt = encoder::bytes::get( sx ); 
-        bfx[idx] = (char) 0b10000001; idx++ ;
+
+        auto x=sx; bool b=0; while( x-->0 ){
+            if( !string::is_print(bf[x]) ){ b=1; break; }
+        }   bfx[idx] = b ? (char) 0b10000010 : (char) 0b10000001; 
+        
+        idx++;
 
         if ( sx < 126 ){ 
             bfx[idx] = (uchar)(byt[byt.size()-1]); idx++;
@@ -601,7 +666,7 @@ namespace nodepp {
 
     int read_ws_frame( char* bf, ws_frame_t& st, int& _state_, ulong& size ){
         array_t<bool> y;
-    gnStart st = ws_frame_t();
+    gnStart memset( &st, 0, sizeof(ws_frame_t) );
         
         y = array_t<bool>(encoder::bin::get( bf[0] )); 
 
@@ -631,8 +696,6 @@ namespace nodepp {
 
     /*─······································································─*/
 
-namespace _ws_ {
-
     GENERATOR( read ){ 
     private:
 
@@ -657,7 +720,7 @@ namespace _ws_ {
         
         /*------*/
 
-        if( frame.LEN ==  0 ){ size = 2; input = 0; coGoto(0); }
+        if( frame.LEN ==  0 ){ state=-1; output=-1; coEnd; }
         if( frame.OPC >= 20 ){ state=-1; output=-1; coEnd; }
         if( frame.OPC ==  8 ){ state=-1; output=-1; coEnd; } 
 
@@ -668,16 +731,16 @@ namespace _ws_ {
         /*------*/
 
         for( int x=0; x<input && frame.MSK ; x++ )
-           { bf[x] = bf[x] ^ frame.KEY[key]; key++; key%=4; }
+           { bf[x]= bf[x]^frame.KEY[key]; key++; key %= 4; }
 
              len += input; output = input;
              size-= input; input  = 0;
 
-        if ( size == 0 ){ size = 2; input = 0; coGoto(0); }
+        if ( size == 0 ){ size=2; coGoto(0); }
 
         /*------*/
 
-        coGoto(2);
+    coGoto(2);
     gnStop
     }};
 
@@ -686,53 +749,49 @@ namespace _ws_ {
 
         string_t   brr;
         string_t   hdr;
+        int        _x = 0;
 
     public:
     
-        int        state = 1;
-        int        input = 0;
-        int        output= 0;
-        ulong      size  = 0;
+        int        output= -2;
+        int        state =  1;
+        int        input =  0;
+        ulong      size  =  0;
 
     gnEmit( char* bf, const ulong& sx ) {
-    gnStart size=sx; output=0; input=0;
+    gnStart size=sx; output=-2; input=0;
 
         /*------*/
 
         hdr = write_ws_frame( bf, size ); 
         brr = string_t      ( bf, size ); 
+        size=hdr.size(); input=0; memcpy( bf, hdr.data(), size ); 
 
         /*------*/
 
-        size=hdr.size();input=0;output=0;
-        memmove( bf, hdr.data( ), size ); 
-
-        /*------*/
-
-        do{ if( input > 0 ){
-            output += input; size -= input;
+        do{ if( input > 0 ){ size -= input;
         if( size == 0 ){ break; }
-            memmove( bf,bf+input,sx-input );
+            memcpy( bf,bf+input,sx-input );
         }   coSet(1); return -1; coYield(1); 
         }   while(1);
 
         /*------*/
 
-        size=brr.size();input=0;output=0;
-        memmove( bf, brr.data( ), size ); 
+        size=brr.size(); input=0; memcpy( bf, brr.data(), size ); 
 
         /*------*/
 
         do{ if( input > 0 ){
-            output += input; size -= input;
+            _x += input; size -= input;
         if( size == 0 ){ break; }
-            memmove( bf,bf+input,sx-input );
+            memcpy( bf,bf+input,sx-input );
         }   coSet(2); return -1; coYield(2); 
         }   while(1);
 
         /*------*/
 
-        coGoto(0);
+        output = _x; coGoto(0);
+    
     gnStop
     }};
 

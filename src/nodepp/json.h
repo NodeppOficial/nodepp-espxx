@@ -16,6 +16,7 @@
 
 #include "object.h"
 #include "regex.h"
+#include "map.h"
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
@@ -50,12 +51,14 @@ protected:
     }
 
     object_t get_data( const string_t& data ) const noexcept {
-        ulong x=0; while( data[x]==' ' ){ x++; }
-          if( data[x] == '"' ){ return regex::match(data,"\"[^\"]+\"").slice(1,-1); }
-        elif( data[x] == '{' ){ return parse( data ); }
-        elif( data[x] == '[' ){ return parse( data ); }
+        ulong x=0; while( x < data.size() && data[x]==' ' ){ x++; }
+          if( data.empty() || data[x] == ',' ){ return nullptr; }
+        elif( data[x] == '"'     ){ return regex::match(data,"\"[^\"]+\"").slice(1,-1); }
+        elif( data[x] == '{'     ){ return parse( data ); }
+        elif( data[x] == '['     ){ return parse( data ); }
         elif( data.find("false") ){ return (bool) 0; }
         elif( data.find("true")  ){ return (bool) 1; }
+        elif( data.find("null")  ){ return nullptr;  }
         elif( data.find('.')     ){ return string::to_float(data); }
         elif( string::is_alpha( data[x] ) ){ return data; }
         else{ return string::to_int( data ); } 
@@ -97,6 +100,7 @@ protected:
 public: json_t () noexcept = default;
 
     object_t parse( const string_t& str ) const {
+        if( str.empty() ){ return nullptr; }
         ulong x = 0; string_t data; process::next(); do {
 
             if ( str[x] == '[' || str[x] == '{' || str[x] == '"' ){
@@ -122,7 +126,8 @@ public: json_t () noexcept = default;
     }
 
     string_t stringify( const object_t& obj ) const { 
-    string_t result; process::next();
+        if( !obj.has_value() ){ return nullptr; }
+        string_t result; process::next();
 
         if( obj.get_type_id() == 20 ){
             result.push('{');
@@ -188,7 +193,7 @@ public: json_t () noexcept = default;
             case 0xf710: return string::format("[%s]",obj.as<array_t<double>>().join().get());   break;
             case 0xf711: return string::format("[%s]",obj.as<array_t<ldouble>>().join().get());  break;
 
-            default: return nullptr; break;
+            default: return "null"; break;
         }
 
         END:; return result;
@@ -202,6 +207,26 @@ namespace nodepp { namespace json {
     string_t stringify( const object_t& obj ){ json_t json; return json.stringify( obj ); }
     object_t     parse( const string_t& str ){ json_t json; return json.parse( str );     }
 }} 
+
+/*────────────────────────────────────────────────────────────────────────────*/
+
+namespace nodepp { namespace json {
+
+    template<class T, class V>
+    object_t parse( const map_t<T,V>& map ){
+        object_t obj; for( auto &x: map.data() ){
+            obj[ x.first ] = x.second;
+        }   return obj;
+    }
+
+    template<class T, class V>
+    string_t stringify( const map_t<T,V>& map ){
+        object_t obj; for( auto &x: map.data() ){
+            obj[ x.first ] = x.second;
+        }   return stringify( obj );
+    }
+
+}}
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
