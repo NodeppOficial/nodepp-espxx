@@ -14,8 +14,7 @@
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-#include <zlib.h>
-#include <zconf.h>
+#include "rom/miniz.h"
 #include "stream.h"
 #include "generator.h"
 
