@@ -115,7 +115,7 @@ namespace poll {
 
     template< class T, class... V >
     void* add( T cb, const V&... arg ){ 
-        if( queue.size() >= MAX_TASKS ){ return nullptr; }
+        if( queue.size() >= MAX_FILENO ){ return nullptr; }
         ptr_t<T>    clb = new T( cb );
         ptr_t<bool> blk = new bool(0);
         ptr_t<bool> out = new bool(1);
