@@ -1,10 +1,20 @@
+/*
+ * Copyright 2023 The Nodepp Project Authors. All Rights Reserved.
+ *
+ * Licensed under the MIT (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://github.com/NodeppOficial/nodepp/blob/main/LICENSE
+ */
+
+/*────────────────────────────────────────────────────────────────────────────*/
+
 #ifndef NODEPP_ZLIB
 #define NODEPP_ZLIB
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-#include <zlib.h>
-#include <zconf.h>
+#include "rom/miniz.h"
 #include "stream.h"
 #include "generator.h"
 
@@ -33,8 +43,8 @@ string_t _inflate_( const string_t& input, const T& onData ){ z_stream stream;
         stream.next_out  = (Bytef*)buffer;
         int x = ::inflate( &stream, Z_FINISH );
 
-        if(( size=UNBFF_SIZE-stream.avail_out )==0 ){
-            output += string_t( buffer, size );
+        if(( size=UNBFF_SIZE-stream.avail_out )>0 ){
+             output += string_t( buffer, size );
         }
 
         if( x == Z_STREAM_END ){ break; } else if( x < 0 ) {
@@ -65,8 +75,8 @@ string_t _deflate_( const string_t& input, const T& onData ){ z_stream stream;
         stream.next_out  = (Bytef*)buffer;
         int x = ::deflate( &stream, Z_FINISH );
 
-        if(( size=UNBFF_SIZE-stream.avail_out )==0 ){
-            output += string_t( buffer, size );
+        if(( size=UNBFF_SIZE-stream.avail_out )>0 ){
+             output += string_t( buffer, size );
         }
 
         if( x == Z_STREAM_END ){ break; } else if( x < 0 ) {

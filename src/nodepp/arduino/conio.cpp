@@ -1,4 +1,17 @@
+/*
+ * Copyright 2023 The Nodepp Project Authors. All Rights Reserved.
+ *
+ * Licensed under the MIT (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://github.com/NodeppOficial/nodepp/blob/main/LICENSE
+ */
+
+/*────────────────────────────────────────────────────────────────────────────*/
+
 #pragma once
+
+/*────────────────────────────────────────────────────────────────────────────*/
 
 #define C_BLACK   0x00
 #define C_WHITE   0x01
@@ -10,12 +23,14 @@
 #define C_MAGENTA 0x07
 #define C_BOLD    0x10
 
+/*────────────────────────────────────────────────────────────────────────────*/
+
 namespace nodepp { namespace conio {
 
     /*─······································································─*/
 
-    int perr( const string_t& args ){ return Serial.write( args.c_str() ); }
-    int pout( const string_t& args ){ return Serial.write( args.c_str() ); }
+    int perr( const string_t& args ){ return Serial.write( args.get(), args.size() ); }
+    int pout( const string_t& args ){ return Serial.write( args.get(), args.size() ); }
 
     template< class V, class... T >
     int scan( const V& argc, const T&... args ){ while(!Serial.available() ){}
@@ -34,13 +49,27 @@ namespace nodepp { namespace conio {
         return size;
     }
 
+    template< class... T >
+    int err( const T&... args ){
+        int last = sizeof...( args ), size = 0;
+        string::map([&]( string_t arg ){ 
+            size += perr( arg + ( --last<1 ? "" : " " ) ); 
+        },  args... ); 
+            size += perr("\033[0m"); 
+        return size;
+    }
+
+    /*─······································································─*/
+    
+    int set_position( int x, int y ){ return pout(string::format("\033[%d;%dH",x,y)); }
+
     /*─······································································─*/
 
-    int gotoxy( int x, int y ){ return pout(string::format("\033[%d;%dH",x,y)); }
+    int gotoxy( int x, int y ){ return set_position( x, y ); }
     int undescore(){ return pout("\033[4m"); }
     int inverse(){ return pout("\033[7m"); }
     int reset(){ return pout("\033[0m"); }
-    int clear(){ return pout("\033c"); }
+    int clear(){ return pout("\033c\n"); }
 
     /*─······································································─*/
 
@@ -80,3 +109,5 @@ namespace nodepp { namespace conio {
     int  warn( const char* msg ){ foreground( C_YELLOW | C_BOLD ); return log( msg ); }
 
 }}
+
+/*────────────────────────────────────────────────────────────────────────────*/
