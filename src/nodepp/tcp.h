@@ -147,9 +147,11 @@ public: tcp_t() noexcept : obj( new NODE() ) {}
                 self->close(); coEnd; 
             }
             
-            sk.onClose.on([=](){ self->close(); }); sk.onOpen.emit(); 
             self->onSocket.emit( sk ); self->onOpen.emit( sk ); 
-            if( cb != nullptr ){(*cb)(sk);} self->obj->func(sk);
+            sk.onClose.once([=](){ self->close(); }); 
+            sk.onOpen.emit(); self->obj->func(sk);
+
+            if( cb != nullptr ){(*cb)(sk);} 
 
         coStop
         });
@@ -181,7 +183,7 @@ namespace tcp {
             server.onConnect.emit(cli); return -1;
         });
 
-    }); server.poll( false ); return server; }
+    }); return server; }
 
     /*─······································································─*/
 
