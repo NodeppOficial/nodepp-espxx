@@ -78,7 +78,7 @@ public: udp_t() noexcept : obj(new NODE()) {}
             int c = 0;
         coStart
 
-            while( sk._bind()==-2 ){ coNext; } if( c < 0 ){ 
+            while( (c=sk._bind())==-2 ){ coNext; } if( c < 0 ){ 
                 _EERROR(self->onError,"Error while binding UDP"); 
                 self->close(); coEnd; 
             }
