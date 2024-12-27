@@ -9,58 +9,66 @@
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-#ifndef NODEPP_EXCEPT
-#define NODEPP_EXCEPT
+#ifndef NODEPP_REFLECT
+#define NODEPP_REFLECT
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-namespace nodepp { class except_t { 
-protected: 
+namespace nodepp { class reflect_t {
+protected:
 
-    struct NODE { 
-        void *ev = nullptr;
-        string_t msg;
+    using T = type::pair< string_t, void* >;
+
+    struct NODE {
+        queue_t<T> fields;
     };  ptr_t<NODE> obj;
 
 public:
 
-    virtual ~except_t() noexcept { 
-        if( obj->ev == nullptr ){ return; }
-   	    process::onSIGERR.off( obj->ev );
-    }
+    /*─······································································─*/
 
-    except_t() noexcept : obj( new NODE() ) {}
+    reflect_t () noexcept : obj( new NODE() ) {}
 
     /*─······································································─*/
 
-    template< class T, class = typename type::enable_if<type::is_class<T>::value,T>::type >
-    except_t( const T& except_type ) noexcept : obj(new NODE()) {
-        obj->msg = except_type.what(); auto inp = type::bind( this ); 
-        obj->ev  = process::onSIGERR.once([=]( ... ){ inp->print(); });
+    template < typename V >
+    void reflect_field( const string_t& name, V& value ) const noexcept {
+         obj->fields.push({ name, type::cast<void>( &value ) });
     }
 
     /*─······································································─*/
 
-    template< class... T >
-    except_t( const T&... msg ) noexcept : obj(new NODE()) {
-        obj->msg = string::join( " ", msg... ); auto inp = type::bind( this ); 
-        obj->ev  = process::onSIGERR.once([=]( ... ){ inp->print(); });
+    array_t<string_t> keys() const noexcept {
+        array_t<string_t> res ( obj->fields.size() );
+        ulong n=0; obj->fields.map([&]( T& data ){
+            res[n] = data.first; n++;
+        }); return res;
     }
 
     /*─······································································─*/
 
-    except_t( const string_t& msg ) noexcept : obj(new NODE()) {
-        obj->msg = msg; auto inp = type::bind( this ); 
-        obj->ev  = process::onSIGERR.once([=]( ... ){ inp->print(); });
+    template< class U, class V >
+    void set_value( const string_t& fieldName, const V& value ) const {
+        auto x = obj->fields.first(); while( x != nullptr ) {
+        auto y = x->next;            
+            if( x->data.first == fieldName ){
+                auto data = type::cast<U>( x->data.second );
+                    *data = (U)(value); return;
+            }        x = y;
+        }   throw except_t( "Field not found [",fieldName,"]" );
     }
 
     /*─······································································─*/
 
-    const char* what() const noexcept { return obj->msg.c_str(); }
-
-    operator char*() const noexcept { return (char*)what(); }
-    
-    void print() const noexcept { console::error(obj->msg); } 
+    template < class V, class = typename type::enable_if<!type::is_pointer<V>::value,V>::type >
+    V& get_field( const string_t& fieldName ) const {
+        auto x = obj->fields.first(); while( x != nullptr ) {
+        auto y = x->next;      
+            if( x->data.first == fieldName ){
+                 return *type::cast<V>( x->data.second );
+            }    x = y;
+        }   throw except_t( "Field not found [",fieldName,"]" );
+    }
 
 };}
 

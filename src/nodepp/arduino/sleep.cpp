@@ -16,10 +16,13 @@ namespace nodepp { namespace process {
 
 namespace nodepp { namespace process {
 
-    void  delay( ulong time ){ ets_delay_us( time * 1000 ); }
-
     ulong now(){ return ::esp_timer_get_time() / 1000; }
 
-    void  yield(){ delay(0); }
+    void delay( ulong time ){ 
+        if( time == 0 ){ return; }
+        ets_delay_us( time * 1000 ); 
+    }
+
+    void  yield(){ delay( TIMEOUT ); }
 
 }}

@@ -1,8 +1,17 @@
+/*
+ * Copyright 2023 The Nodepp Project Authors. All Rights Reserved.
+ *
+ * Licensed under the MIT (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://github.com/NodeppOficial/nodepp/blob/main/LICENSE
+ */
+
+/*────────────────────────────────────────────────────────────────────────────*/
+
 #ifndef NODEPP_WS
 #define NODEPP_WS
-#ifndef SECRET
 #define SECRET "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
-#endif
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
@@ -13,47 +22,74 @@
 /*────────────────────────────────────────────────────────────────────────────*/
 
 namespace nodepp { class ws_t : public socket_t {
+protected:
+
+    struct NODE {
+        _ws_::write write;
+        _ws_::read  read ;
+    };  ptr_t<NODE> ws;
+
 public:
 
     template< class... T > 
-    ws_t( const T&... args ) : socket_t(args...) {}
+    ws_t( const T&... args ) noexcept : socket_t( args... ), ws( new NODE() ){}
 
-    /*─······································································─*/
+    virtual int _write( char* bf, const ulong& sx ) const noexcept {
+        if( is_closed() ){ return -1; } if( sx==0 ){ return 0; }
+        while( ws->write( this, bf, sx )==1 ){ return -2; }
+        return ws->write.data==0 ? -2 : ws->write.data;
+    }
 
     virtual int _read( char* bf, const ulong& sx ) const noexcept {
-        int    x = socket_t::_read( bf, sx );
-        return x<=0 ? x : read_ws_frame( bf, x );
+        if( is_closed() ){ return -1; } if( sx==0 ){ return 0; }
+        while( ws->read( this, bf, sx )==1 ){ return -2; }
+        return ws->read.data==0 ? -2 : ws->read.data;
     }
-    
-    virtual int _write( char* bf, const ulong& sx ) const noexcept {
-        int    x = write_ws_frame( bf, sx );
-        return x<=0 ? x : socket_t::_write( bf, x );
-    } 
 
-}; }
+public:
+
+    bool _write_( char* bf, const ulong& sx, ulong& sy ) const noexcept {
+        if( sx==0 || is_closed() ){ return 1; } while( sy < sx ) {
+            int c = __write( bf+sy, sx-sy );
+            if( c <= 0 && c != -2 )          { return 0; }
+            if( c >  0 ){ sy += c; continue; } return 1;
+        }   return 0;
+    }
+
+    bool _read_( char* bf, const ulong& sx, ulong& sy ) const noexcept {
+        if( sx==0 || is_closed() ){ return 1; } while( sy < sx ) {
+            int c = __read( bf+sy, sx-sy );
+            if( c <= 0 && c != -2 )          { return 0; }
+            if( c >  0 ){ sy += c; continue; } return 1;
+        }   return 0;
+    }
+
+};}
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
 namespace nodepp { namespace ws {
 
-    tcp_t server( const tcp_t& server ){ server.onSocket([=]( socket_t cli ){
-        if ( !nodepp::WSServer( (http_t) cli ) ){ return; }
-        ptr_t<_file_::read> _read = new _file_::read;
-        cli.onDrain.once([=](){ cli.free(); });
+    tcp_t server( const tcp_t& srv ){ srv.onSocket([=]( socket_t cli ){
+        auto hrv = type::cast<http_t>(cli);
+        if ( !_ws_::server( hrv ) ){ return; }
 
-        server.onConnect.once([=]( ws_t cli ){ cli.busy(); 
-        process::poll::add([=](){
-            if(!cli.is_available() ) { cli.close(); return -1; }
-            if((*_read)(&cli)==1 )   { return 1; }
-            if(  _read->c  <=  0 )   { return 1; }
-            cli.onData.emit(_read->y); return 1;
-        }) ; });
+        cli.onDrain.once([=](){ cli.free(); cli.onData.clear(); });
+        ptr_t<_file_::read> _read = new _file_::read;
+        cli.set_timeout(0);
+
+        srv.onConnect.once([=]( ws_t ctx ){ process::poll::add([=](){
+            if(!cli.is_available() )    { cli.close(); return -1; }
+            if((*_read)(&ctx)==1 )      { return 1; }
+            if(  _read->state<=0 )      { return 1; }
+            ctx.onData.emit(_read->data); return 1;
+        }); });
 
         process::task::add([=](){
-            cli.resume(); server.onConnect.emit(cli); return -1;
+            cli.resume(); srv.onConnect.emit(cli); return -1;
         });
         
-    }); return server; }
+    }); return srv; }
 
     /*─······································································─*/
 
@@ -64,39 +100,33 @@ namespace nodepp { namespace ws {
 
     /*─······································································─*/
 
-    ws_t client( const string_t& url, agent_t* opt=nullptr ){
+    tcp_t client( const string_t& uri, agent_t* opt=nullptr ){ 
+    tcp_t srv ( [=]( socket_t /*unused*/ ){}, opt ); 
+        srv.connect( url::hostname(uri), url::port(uri) );
+        srv.onSocket.once([=]( socket_t cli ){
+            auto hrv = type::cast<http_t>(cli);
+            if ( !_ws_::client( hrv, uri ) ){ return; }
 
-        string_t hsh = crypto::genkey("abcdefghiABCDEFGHI0123456789",22);
-        string_t key = string::format("%s==",hsh.data());
-        ptr_t<_file_::read> _read = new _file_::read;
+            cli.onDrain.once([=](){ cli.free(); cli.onData.clear(); }); 
+            ptr_t<_file_::read> _read = new _file_::read;
+            cli.set_timeout(0);
 
-        fetch_t args;
-                args.url = url;
-                args.headers = {{
-            { "Upgrade", "websocket" },
-            { "Connection", "Upgrade" },
-            { "Sec-Websocket-Key", key },
-            { "Sec-Websocket-Version", "13" }
-        }};
+            srv.onConnect.once([=]( ws_t ctx ){ process::poll::add([=](){
+                if(!cli.is_available() )    { cli.close(); return -1; }
+                if((*_read)(&ctx)==1 )      { return 1; }
+                if(  _read->state<=0 )      { return 1; }
+                ctx.onData.emit(_read->data); return 1;
+            }); });
 
-        ws_t cli = nodepp::WSClient( http::fetch( args, opt ), key );
-             cli.onDrain.once([=](){ cli.free(); }); 
-
-        cli.onOpen.once([=](){ cli.busy(); 
-        process::poll::add([=](){
-            if(!cli.is_available() ) { cli.close(); return -1; }
-            if((*_read)(&cli)==1 )   { return 1; }
-            if(  _read->c  <=  0 )   { return 1; }
-            cli.onData.emit(_read->y); return 1;
-        }) ; });
-
-        process::task::add([=](){
-            cli.resume(); cli.onOpen.emit(); return -1;
+            process::task::add([=](){
+                cli.resume(); srv.onConnect.emit(cli); return -1;
+            });
+        
         });
-
-        return cli;
-    }
+    
+    return srv; }
 
 }}
 
+#undef SECRET
 #endif

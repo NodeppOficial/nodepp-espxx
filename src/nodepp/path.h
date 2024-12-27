@@ -1,3 +1,14 @@
+/*
+ * Copyright 2023 The Nodepp Project Authors. All Rights Reserved.
+ *
+ * Licensed under the MIT (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://github.com/NodeppOficial/nodepp/blob/main/LICENSE
+ */
+
+/*────────────────────────────────────────────────────────────────────────────*/
+
 #ifndef NODEPP_PATH
 #define NODEPP_PATH
 
@@ -13,6 +24,7 @@ namespace nodepp {
 /*────────────────────────────────────────────────────────────────────────────*/
 
 struct path_t {
+    string_t type;
     string_t path;
     string_t root; 
     string_t base;
@@ -25,66 +37,69 @@ struct path_t {
 
 namespace _path_ { map_t<string_t,string_t> mimetype ({
 
-    { "txt", "text/plain" },
+    { "txt",  "text/plain" },
     { "text", "text/plain" },
 
-    { "otf", "font/otf" },
-    { "ttf", "font/ttf" },
+    { "otf",  "font/otf" },
+    { "ttf",  "font/ttf" },
     { "woff", "font/woff" },
-    { "woff2", "font/woff2" },
+    { "woff2","font/woff2" },
 
-    { "oga", "audio/ogg" },
-    { "aac", "audio/aac" },
-    { "wav", "audio/wav" },
-    { "mp3", "audio/mpeg" },
+    { "oga",  "audio/ogg" },
+    { "aac",  "audio/aac" },
+    { "wav",  "audio/wav" },
+    { "mp3",  "audio/mpeg" },
     { "opus", "audio/opus" },
     { "weba", "audio/webm" },
 
-    { "ogv", "video/ogg" },
-    { "mp4", "video/mp4" },
-    { "ts", "video/mp2t" },
+    { "ogv",  "video/ogg" },
+    { "mp4",  "video/mp4" },
+    { "ts",   "video/mp2t" },
     { "webm", "video/webm" },
     { "mpeg", "video/mpeg" },
-    { "avi", "video/x-msvideo" },
+    { "avi",  "video/x-msvideo" },
 
-    { "cpp", "text/X-C" },
-    { "css", "text/css" },
-    { "csv", "text/csv" },
+    { "c",    "text/X-C" },
+    { "css",  "text/css" },
+    { "csv",  "text/csv" },
     { "html", "text/html" },
     { "scss", "text/scss" },
-    { "ics", "text/calendar" },
-    { "js", "text/javascript" },
-    { "xml", "application/xhtml+xml" },
+    { "cpp",  "text/X-CPP" },
+    { "ics",  "text/calendar" },
+    { "js",   "text/javascript" },
+    { "xml",  "application/xhtml+xml" },
 
-    { "bmp", "image/bmp" },
-    { "gif", "image/gif" },
-    { "png", "image/png" },
-    { "jpg", "image/jpeg" },
+    { "bmp",  "image/bmp" },
+    { "gif",  "image/gif" },
+    { "png",  "image/png" },
+    { "jpg",  "image/jpeg" },
     { "jpeg", "image/jpeg" },
     { "webp", "image/webp" },
-    { "svg", "image/svg+xml" },
-    { "ico", "image/vnd.microsoft.icon" },
+    { "svg",  "image/svg+xml" },
+    { "ico",  "image/vnd.microsoft.icon" },
 
-    { "zip", "application/zip" },
-    { "gz", "application/gzip" },
-    { ".h", "application/x-.h" },
+    { "url",  "application/x-www-form-urlencoded" },
+
+    { "zip",  "application/zip" },
+    { "gz",   "application/gzip" },
+    { ".h",   "application/x-.h" },
     { "json", "application/json" },
     { "wasm", "application/wasm" },
-    { "tar", "application/x-tar" },
-    { "rar", "application/vnd.rar" },
-    { "7z", "application/x-7z-compressed" },
+    { "tar",  "application/x-tar" },
+    { "rar",  "application/vnd.rar" },
+    { "7z",   "application/x-7z-compressed" },
     { "m3u8", "application/vnd.apple.mpegurl" },
-    { "exe", "application/vnd.microsoft.portable-executable" },
+    { "exe",  "application/vnd.microsoft.portable-executable" },
 
-    { "pdf", "application/pdf" },
-    { "doc", "application/msword" },
-    { "vsd", "application/vnd.visio" },
-    { "xls", "application/vnd.ms-excel" },
-    { "ppt", "application/vnd.ms-powerpoint" },
-    { "swf", "application/x-shockwave-fla.h" },
-    { "ods", "application/vnd.oasis.opendocument.spreadsheet" },
-    { "odp", "application/vnd.oasis.opendocument.presentation" },
-    { "odt", "application/vnd.oasis.opendocument.presentation" },
+    { "pdf",  "application/pdf" },
+    { "doc",  "application/msword" },
+    { "vsd",  "application/vnd.visio" },
+    { "xls",  "application/vnd.ms-excel" },
+    { "ppt",  "application/vnd.ms-powerpoint" },
+    { "swf",  "application/x-shockwave-fla.h" },
+    { "ods",  "application/vnd.oasis.opendocument.spreadsheet" },
+    { "odp",  "application/vnd.oasis.opendocument.presentation" },
+    { "odt",  "application/vnd.oasis.opendocument.presentation" },
     { "xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" },
     { "docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document" },
     { "pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation" }
@@ -96,10 +111,9 @@ namespace _path_ { map_t<string_t,string_t> mimetype ({
 namespace path {
 
 namespace {
-#if _KERNEL == NODEPP_KERNEL_WINDOWS
+#if false // _KERNEL == NODEPP_KERNEL_WINDOWS
     string_t sep  = "\\\\";
     string_t root = "c:\\\\";
-    string_t none = "[\\\\]+";
     string_t  one = "[^\\\\]+";
     string_t init = "\\w:\\\\";
     string_t _beg = "\\w:\\\\";
@@ -110,7 +124,6 @@ namespace {
     string_t _beg = "/";
     string_t root = "./";
     string_t  beg = "^/";
-    string_t none = "[/]+";
     string_t  one = "[^/]+";
 #endif
 }
@@ -146,9 +159,8 @@ namespace {
     /*─······································································─*/
 
     string_t extname( const string_t& path ){ string_t m;
-        regex_t reg("\\.\\w*$"); if( !reg.test( path ) ) 
-          { return m; } m = reg.match( path ); 
-            return regex::replace_all( m, "\\.", "" );
+        regex_t reg("\\.\\w+$"); if( !reg.test( path ) ) 
+          { return m; } return reg.match( path ).slice(1);
     }
     
     /*─······································································─*/
@@ -156,21 +168,21 @@ namespace {
     string_t mimetype( const string_t& path ){
         string_t ext = extname( path ); if( ext.empty() ) 
         { return ext; } for( auto x: _path_::mimetype.data() ){
-            if( regex::test( ext, x.first ) ){ return x.second; }
+            if( regex::test( x.first, ext ) ){ return x.second; }
         }   return string::format("aplication/%s",ext.c_str());
     }
 
     string_t mimetype( const path_t& path ){
          if( path.ext.empty() ) { return path.ext; } 
         for( auto x: _path_::mimetype.data() ){
-            if( regex::test( path.ext, x.first ) ){ return x.second; }
+            if( regex::test( x.first, path.ext ) ){ return x.second; }
         }   return string::format("aplication/%s",path.ext.c_str());
     }
 
     /*─······································································─*/
 
     string_t dirname( const string_t& path ){ 
-        auto vec = regex::split( path, none );
+        auto vec = regex::split( path, "/+|\\\\+" );
         vec.pop(); return vec.join( sep );
     }
     
@@ -178,7 +190,7 @@ namespace {
 
     string_t basename( const string_t& path ){ 
         auto vec = regex::match_all( path, one );
-        if ( vec.empty() ){ return ""; }
+        if ( vec.empty() ){ return nullptr; }
         return vec[ vec.last() ];
     }
     
@@ -186,26 +198,25 @@ namespace {
 
     string_t basename( const string_t& path, const string_t& del ){ 
         auto vec = regex::match_all( path, one );
-        if ( vec.empty() ){ return ""; }
+        if ( vec.empty() ){ return nullptr; }
         return regex::replace( vec[ vec.last() ], del, "" );
     }
 
     /*─······································································─*/
 
-    string_t format( path_t* obj=nullptr ) { string_t _path;
+    string_t format( path_t& obj ) { string_t _path;
 
-        if(  obj == nullptr )   { return _path;       }
-        if( !obj->path.empty() ){ return obj->path;   }
+        if( !obj.path.empty() ){ return obj.path;   }
         
-        if( !obj->root.empty() ){ _path += obj->root; }
-        else                    { _path += root;      }
+        if( !obj.root.empty() ){ _path += obj.root; }
+        else                   { _path += root;     }
 
-        if( !obj->dir .empty() ){ _path += obj->dir;  }
-        if( !obj->base.empty() ){ _path += obj->base; }
+        if( !obj.dir .empty() ){ _path += obj.dir;  }
+        if( !obj.base.empty() ){ _path += obj.base; }
 
         else {
-            if( !obj->name.empty() ){ _path += obj->name + string::to_string("."); }
-            if( !obj->ext .empty() ){ _path += obj->ext; }
+            if( !obj.name.empty() ){ _path += obj.name + string::to_string("."); }
+            if( !obj.ext .empty() ){ _path += obj.ext; }
         }
         
         return _path;
@@ -222,6 +233,7 @@ namespace {
         result.ext  = extname( path ); 
         result.dir  = dirname( path );
         result.base = basename( path );
+        result.type = mimetype( path );
         result.name = basename( path, "\\."+result.ext );
 
         return result;

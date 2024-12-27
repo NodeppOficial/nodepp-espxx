@@ -9,15 +9,15 @@
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-#ifndef NODEPP_SLEEP
-#define NODEPP_SLEEP
+#ifndef NODEPP_MUTEX
+#define NODEPP_MUTEX
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
 #if _KERNEL == NODEPP_KERNEL_ARDUINO
-    #include "arduino/sleep.cpp"
+    #include "arduino/mutex.cpp"
 #else
-    #error "This OS Does not support sleep.h"
+    #error "This OS Does not support mutex.h"
 #endif
 
 /*────────────────────────────────────────────────────────────────────────────*/

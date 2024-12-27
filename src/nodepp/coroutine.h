@@ -1,23 +1,27 @@
+/*
+ * Copyright 2023 The Nodepp Project Authors. All Rights Reserved.
+ *
+ * Licensed under the MIT (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://github.com/NodeppOficial/nodepp/blob/main/LICENSE
+ */
+
+/*────────────────────────────────────────────────────────────────────────────*/
+
 #ifndef NODEPP_COROUTINE
 #define NODEPP_COROUTINE
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
+#define rand_range( A, B ) clamp( rand()%B, A, B )
 template< class T > T clamp( const T& val, const T& _min, const T& _max ){ return max( _min, min( _max, val ) ); }
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-#define _EERROR( Ev, message ) if ( Ev.empty() ){ console::error(message); } \
-                               else Ev.emit( except_t( message ) );
-
-#define _ERROR( MESSAGE ) throw except_t ( MESSAGE );
-
-/*────────────────────────────────────────────────────────────────────────────*/
-
-#define _main_ _init_(); void setup(){ \
-   Serial.begin( 9600 ); _init_(); \
-} void loop(){ process::next(); \
-} void _init_
+#define coDelay(VALUE)  do { static auto tm = process::millis()+VALUE; while( process::millis() < tm ){ coNext; } tm = process::millis()+VALUE; break; } while (0)
+#define coUDelay(VALUE) do { static auto tm = process::micros()+VALUE; while( process::micros() < tm ){ coNext; } tm = process::micros()+VALUE; break; } while (0)
+#define coWait(VALUE)   do { while( !VALUE ){ coNext; } } while(0)
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
@@ -29,22 +33,49 @@ template< class T > T clamp( const T& val, const T& _min, const T& _max ){ retur
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
+#define _EERROR( Ev, ... ) if  ( Ev.empty() ){ console::error(__VA_ARGS__); } \
+                           else{ Ev.emit( except_t(__VA_ARGS__) ); }
+#define _ERROR( ... )      { console::error(__VA_ARGS__); exit(1); }
+
+/*────────────────────────────────────────────────────────────────────────────*/
+
 #define coStart static int _state_ = 0; { switch(_state_) { case 0:;
-#define coEnd     do { _state_ = 0; return -1; } while (0)
-#define coStop       } _state_ = 0; return -1; }
-#define coSet(VALUE)   _state_ = VALUE
-#define coGet          _state_
+#define coEnd         do { _state_ = 0; return -1; } while (0)
+#define coStop           } _state_ = 0; return -1; }
+#define coSet(VALUE)       _state_ = VALUE
+#define coGet              _state_
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-#define GENERATOR(NAME) struct NAME : public NODEPP_GENERATOR_BASE
-#define gnStart    { switch(_state_) { case 0:;
-#define gnStop     } _state_ = 0;  return -1; }
-#define gnEmit       int operator()
+#define CHUNK_TB( VALUE ) ( 1024 * 1024 * 1024 * 1024 * VALUE )
+#define CHUNK_GB( VALUE ) ( 1024 * 1024 * 1024 * VALUE )
+#define CHUNK_MB( VALUE ) ( 1024 * 1024 * VALUE )
+#define CHUNK_KB( VALUE ) ( 1024 * VALUE )
+#define CHUNK_B( VALUE )  ( VALUE )
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
+#define GENERATOR(NAME) struct NAME : public generator_t
+#define gnStart { switch(_state_) { case 0:;
+#define coEmit  int operator()
+#define gnStop  coStop
+#define gnEmit  coEmit
+
+/*────────────────────────────────────────────────────────────────────────────*/
+
+#define onMain loop(){ process::next(); } void setup
+
+/*────────────────────────────────────────────────────────────────────────────*/
+
+#define forEach( X, ITEM ) for( auto& X : ITEM )
+#define forEver() for (;;)
+#define elif else if
+
+/*────────────────────────────────────────────────────────────────────────────*/
+
+#define _JSON_(...) json::parse(_STRING_(__VA_ARGS__))
 #define _FUNC_  __PRETTY_FUNCTION__
+#define _STRING_(...) #__VA_ARGS__
 #define _NAME_  __FUNCTION__
 #define _DATE_  __DATE__
 #define _FILE_  __FILE__
@@ -53,27 +84,37 @@ template< class T > T clamp( const T& val, const T& _min, const T& _max ){ retur
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-#define CHUNK_TB( VALUE ) ( 1024 * 1024 * 1024 * 1024 * VALUE )
-#define CHUNK_GB( VALUE ) ( 1024 * 1024 * 1024 * VALUE )
-#define CHUNK_MB( VALUE ) ( 1024 * 1024 * VALUE )
-#define CHUNK_KB( VALUE ) ( 1024 * VALUE )
-#define CHUNK_B ( VALUE ) ( VALUE )
+#define CHUNK_SIZE 65536
+#define UNBFF_SIZE 4096
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-#define MAX_SOCKET SOMAXCONN
-#define CHUNK_SIZE 65536
-#define SSL_SIZE   16384
-#define UNBFF_SIZE 4096
-#define TIMEOUT    3
+#ifndef MAX_WORKERS
+#define MAX_WORKERS 64
+#endif
+
+#ifndef MAX_EVENTS
+#define MAX_EVENTS  64
+#endif
+
+#ifndef MAX_FILENO
+#define MAX_FILENO  64
+#endif
+
+#ifndef MAX_TASKS
+#define MAX_TASKS   64
+#endif
+
+/*────────────────────────────────────────────────────────────────────────────*/
+
+#ifndef TIMEOUT
+#define TIMEOUT 0
+#endif
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
 #define typeof(DATA) (string_t){ typeid( DATA ).name() }
-
-struct NODEPP_GENERATOR_BASE { protected:
-   int  _state_ = 0;
-};
+struct generator_t { protected: int _state_ = 0; };
 
 #define ullong  unsigned long long int
 #define ulong   unsigned long int
@@ -84,151 +125,6 @@ struct NODEPP_GENERATOR_BASE { protected:
 #define uchar   unsigned char
 #define uint    unsigned int
 #define wchar   wchar_t
-
-/*────────────────────────────────────────────────────────────────────────────*/
-
-#define forEach( ITEM, CB ) for( auto& x : ITEM ){ CB( x ); }
-#define forEver() for (;;)
-#define elif else if
-
-/*────────────────────────────────────────────────────────────────────────────*/
-
-#define NODEPP_KERNEL_WINDOWS 4
-#define NODEPP_KERNEL_POSIX   3
-#define NODEPP_KERNEL_ARDUINO 2
-#define NODEPP_KERNEL_WASM    1
-#define NODEPP_KERNEL_UNKNOWN 0
-
-#ifndef    _KERNEL
-#if defined(WINDOWS) || defined(_WIN32) || defined(_WIN64)
-   #define _KERNEL NODEPP_KERNEL_WINDOWS
-#elif defined(__EMSCRIPTEN__)
-   #define _ENVIRONMENT NODEPP_ENVIRONMENT_WASM
-#elif defined(ARDUINO)
-   #define _KERNEL NODEPP_KERNEL_ARDUINO
-#elif defined(__linux__)
-   #define _KERNEL NODEPP_KERNEL_POSIX
-#else
-   #define _KERNEL NODEPP_KERNEL_UNKNOWN
-#endif
-#endif
-
-/*────────────────────────────────────────────────────────────────────────────*/
-
-#define NODEPP_OS_WINDOWS 8
-#define NODEPP_OS_ANDROID 7
-#define NODEPP_OS_IOS     6
-#define NODEPP_OS_TIZEN   5
-#define NODEPP_OS_APPLE   4
-#define NODEPP_OS_FRBSD   3
-#define NODEPP_OS_LINUX   2
-#define NODEPP_OS_ARDUINO 1
-#define NODEPP_OS_UNKNOWN 0
-
-#ifndef    _OS
-#if defined(WINDOWS) || defined(_WIN32) || defined(_WIN64)
-   #define _OS NODEPP_OS_WINDOWS
-#elif defined(__APPLE__) && defined(__MACH__)
-   #define _OS NODEPP_OS_IOS
-#elif defined(__TIZEN__)
-   #define _OS NODEPP_OS_TIZEN
-#elif defined(__ANDROID__)
-   #define _OS NODEPP_OS_ANDROID
-#elif defined(__FreeBSD__)
-   #define _OS NODEPP_OS_FRBSD
-#elif defined(__APPLE__)
-   #define _OS NODEPP_OS_APPLE
-#elif defined(__linux__)
-   #define _OS NODEPP_OS_LINUX
-#elif defined(ARDUINO)
-   #define _OS NODEPP_OS_ARDUINO
-#else
-   #define _OS NODEPP_OS_UNKNOWN
-#endif
-#endif
-
-/*────────────────────────────────────────────────────────────────────────────*/
-
-#define NODEPP_ARCH_ESP_8266 1
-#define NODEPP_ARCH_ESP_32   1
-#define NODEPP_ARCH_CPU_64   4
-#define NODEPP_ARCH_CPU_32   3
-#define NODEPP_ARCH_ARM_64   2
-#define NODEPP_ARCH_ARM_32   1
-#define NODEPP_ARCH_UNKNOWN  0
-
-#ifndef       _ARCH
-#if defined(__GNUC__)
-   #if defined(__x86_64__)
-      #define _ARCH NODEPP_ARCH_CPU_64
-   #elif defined(__aarch64__)
-      #define _ARCH NODEPP_ARCH_ARM_64
-   #elif defined(__i386__)
-      #define _ARCH NODEPP_ARCH_CPU_32
-   #elif defined(__arm__)
-      #define _ARCH NODEPP_ARCH_ARM_64
-   #else
-      #define _ARCH NODEPP_ARCH_UNKNOWN
-   #endif
-#else
-   #if defined(_M_IX86)
-      #define _ARCH NODEPP_ARCH_CPU_32
-   #elif defined(_M_ARM64)
-      #define _ARCH NODEPP_ARCH_ARM_64
-   #elif defined(_M_X64)
-      #define _ARCH NODEPP_ARCH_CPU_64
-   #elif defined(_M_ARM)
-      #define _ARCH NODEPP_ARCH_ARM_32
-   #else
-      #define _ARCH NODEPP_ARCH_UNKNOWN
-   #endif
-#endif
-#endif
-
-/*────────────────────────────────────────────────────────────────────────────*/
-
-#define NODEPP_ENVIRONMENT_GNU     5
-#define NODEPP_ENVIRONMENT_MSYS2   4
-#define NODEPP_ENVIRONMENT_MINGW   3
-#define NODEPP_ENVIRONMENT_CYWIN   2
-#define NODEPP_ENVIRONMENT_UNKNOWN 0
-
-#ifndef    _ENVIRONMENT
-#if defined(__MSYS__)
-   #define _ENVIRONMENT NODEPP_ENVIRONMENT_MSYS2
-#elif defined(__CYGWIN__)
-   #define _ENVIRONMENT NODEPP_ENVIRONMENT_CYWIN
-/*
-#elif defined(__MINGW32__) || defined(__MINGW64__)
-   #define _ENVIRONMENT NODEPP_ENVIRONMENT_MINGW
-#elif defined(__GNUC__)
-   #define _ENVIRONMENT NODEPP_ENVIRONMENT_GNU
-*/
-#else
-   #define _ENVIRONMENT NODEPP_ENVIRONMENT_UNKNOWN
-#endif
-#endif
-
-/*────────────────────────────────────────────────────────────────────────────*/
-
-#define NODEPP_POLL_WPOLL  3
-#define NODEPP_POLL_KPOLL  2
-#define NODEPP_POLL_EPOLL  1
-#define NODEPP_POLL_POLL   0
-
-#ifndef    _POLL
-#if   _OS == NODEPP_OS_WINDOWS
-   #define _POLL NODEPP_POLL_WPOLL
-#elif _OS == NODEPP_OS_APPLE
-   #define _POLL NODEPP_POLL_KPOLL
-#elif _OS == NODEPP_OS_FRBSD
-   #define _POLL NODEPP_POLL_KPOLL
-#elif _OS == NODEPP_OS_LINUX
-   #define _POLL NODEPP_POLL_EPOLL
-#else
-   #define _POLL NODEPP_POLL
-#endif
-#endif
 
 /*────────────────────────────────────────────────────────────────────────────*/
 

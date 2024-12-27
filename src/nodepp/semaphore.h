@@ -9,66 +9,73 @@
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-#ifndef NODEPP_CONSOLE
-#define NODEPP_CONSOLE
+#ifndef NODEPP_SEMAPHORE
+#define NODEPP_SEMAPHORE
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-#include "conio.h"
+#include "mutex.h"
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-namespace nodepp { namespace console {
+namespace nodepp { class semaphore_t {
+public:
 
-    template< class... T >
-    int err( const T&... args ){ return conio::err(args...,"\n"); }
+    semaphore_t() : obj( new NODE() ){}
 
-    template< class... T >
-    int log( const T&... args ){ return conio::log(args...,"\n"); }
-
-    template< class... T >
-    int scan( const T&... args ){ return conio::scan( args... ); }
-
-    template< class... T >
-    int pout( const T&... args ){ return conio::log( args... ); }
-
-    void wait(){ char x; conio::scan("%c",&x); }
-
-    void clear(){ conio::clear(); }
+    virtual ~semaphore_t() noexcept {
+        if( obj->addr == (void*)this )
+          { release(); }
+    };
     
     /*─······································································─*/
 
-    template< class... T >
-    int warning( const T&... args ){ 
-        conio::warn("WARNING: ");
-        return log( args... ); 
+    void wait( uchar count ) const noexcept { goto check;
+
+        loop: worker::yield();
+        
+        check:
+            obj->mutex.lock(); 
+            if( obj->ctx >= obj.count() ) obj->ctx = 0;
+            if( obj.count()>0 ) obj->ctx%=obj.count(); 
+            if( obj->ctx != count%obj.count() ) 
+              { obj->mutex.unlock(); goto loop; }
+            obj->addr=(void*)this;
+            obj->mutex.unlock();
+
+    }
+    
+    /*─······································································─*/
+
+    void wait() const noexcept { goto check;
+
+        loop: worker::yield();
+        
+        check:
+            obj->mutex.lock(); 
+            if((obj->ctx%2) != 0 )
+              { obj->mutex.unlock(); goto loop; }
+            obj->ctx++; obj->addr=(void*)this;
+            obj->mutex.unlock();
+
     }
 
-    template< class... T >
-    int success( const T&... args ){ 
-        conio::done("SUCCESS: ");
-        return log( args... );  
+    void release() const noexcept {
+        obj->mutex.lock();
+        obj->addr=nullptr; 
+        obj->ctx++; 
+        obj->mutex.unlock();
     }
 
-    template< class... T >
-    int error( const T&... args ){ 
-        conio::error("ERROR: "); 
-        return log( args... ); 
-    }
+protected:
 
-    template< class... T >
-    int done( const T&... args ){ 
-        conio::done("DONE: "); 
-        return log( args... ); 
-    }
+    struct NODE {
+        void*   addr=nullptr;
+        uchar   ctx=0;
+        mutex_t mutex;
+    };  ptr_t<NODE> obj;
 
-    template< class... T >
-    int info( const T&... args ){ 
-        conio::info("INFO: "); 
-        return log( args... ); 
-    }
-
-}}
+};}
 
 /*────────────────────────────────────────────────────────────────────────────*/
 

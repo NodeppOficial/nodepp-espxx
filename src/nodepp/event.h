@@ -1,3 +1,14 @@
+/*
+ * Copyright 2023 The Nodepp Project Authors. All Rights Reserved.
+ *
+ * Licensed under the MIT (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://github.com/NodeppOficial/nodepp/blob/main/LICENSE
+ */
+
+/*────────────────────────────────────────────────────────────────────────────*/
+
 #ifndef NODEPP_EVENT
 #define NODEPP_EVENT
 
@@ -6,14 +17,9 @@
 namespace nodepp { template< class... A > class event_t { 
 protected:
 
-    struct NODE {
-        function_t<void,A...> cb;
-        bool                  on;
-    };  using ev = queue_t<NODE>;
+    using NODE = function_t<bool,A...>; ptr_t<queue_t<NODE>> obj;
 
-        ptr_t<ev> obj;
-
-public: event_t() noexcept : obj( new ev ) {}
+public: event_t() noexcept : obj( new queue_t<NODE>() ) {}
     
     /*─······································································─*/
 
@@ -21,7 +27,25 @@ public: event_t() noexcept : obj( new ev ) {}
     
     /*─······································································─*/
 
-    ulong empty() const noexcept { return obj->empty(); }
+    void off( void* address ) const noexcept { process::clear( address ); }
+
+    void* once( function_t<void,A...> func ) const noexcept {
+        if( obj->size() >= MAX_EVENTS ) { return nullptr; }
+        ptr_t<bool> out = new bool(1); obj->push([=]( A... args ){
+            if( *out != 0 ){ func( args... ); } return *out;
+        }); return &out;
+    }
+
+    void* on( function_t<void,A...> func ) const noexcept {
+        if( obj->size() >= MAX_EVENTS ) { return nullptr; }
+        ptr_t<bool> out = new bool(1); obj->push([=]( A... args ){
+            if( *out != 0 ){ func( args... ); } return *out;
+        }); return &out;
+    }
+    
+    /*─······································································─*/
+
+    bool  empty() const noexcept { return obj->empty(); }
     ulong  size() const noexcept { return obj->size(); }
     void  clear() const noexcept { obj->clear(); }
     
@@ -29,29 +53,9 @@ public: event_t() noexcept : obj( new ev ) {}
 
     void emit( const A&... args ) const noexcept {
         auto x = obj->first(); while( x != nullptr ){
-             x->data.cb( args... ); if( !x->data.on )
-            { auto y=x->next; obj->erase(x); x=y; } 
-              else x=x->next; 
-        }
-    }
-    
-    /*─······································································─*/
-
-    void off( void* id ) const noexcept { auto x = obj->first(); 
-        while( id != nullptr && x != nullptr ){
-            if ( x == id ){ obj->erase(x); break; } 
-            else x = x->next; 
-        }
-    }
-
-    void* once( function_t<void,A...> func ) const noexcept {
-                       obj->push({ func, 0 }); 
-        return (void*) obj->last();
-    }
-
-    void* on( function_t<void,A...> func ) const noexcept {
-                       obj->push({ func, 1 }); 
-        return (void*) obj->last();
+        auto y = x->next; 
+            if( !x->data( args... ) ){ obj->erase(x); }
+        x = y; }
     }
     
 };}

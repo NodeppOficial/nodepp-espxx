@@ -1,3 +1,14 @@
+/*
+ * Copyright 2023 The Nodepp Project Authors. All Rights Reserved.
+ *
+ * Licensed under the MIT (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://github.com/NodeppOficial/nodepp/blob/main/LICENSE
+ */
+
+/*────────────────────────────────────────────────────────────────────────────*/
+
 #ifndef NODEPP_DEBUG
 #define NODEPP_DEBUG
 
@@ -11,21 +22,18 @@ protected:
         string_t msg;
     };  ptr_t<NODE> obj;
 
-public:
+public: debug_t() noexcept : obj(new NODE()) { }
 
     virtual ~debug_t() noexcept { 
-    //  if ( obj.count() > 2 ){ return; }
-	    console::log( obj->msg, "closed" );  
+        if ( obj.count() == 1 ){ console::log( obj->msg, "closed" ); }
     }
     
     /*─······································································─*/
 
     debug_t( const string_t& msg ) noexcept : obj(new NODE()) {
-        obj->msg = msg; console::log( obj->msg, "open" );
-    }
-    
-    debug_t() noexcept : obj(new NODE()) {
-        obj->msg = "something went wrong"; console::log( obj->msg, "open" );
+        obj->msg = msg; 
+        auto inp = type::bind( this );
+	               console::log( obj->msg, "open" );
     }
     
     /*─······································································─*/

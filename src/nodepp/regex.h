@@ -1,258 +1,323 @@
+/*
+ * Copyright 2023 The Nodepp Project Authors. All Rights Reserved.
+ *
+ * Licensed under the MIT (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://github.com/NodeppOficial/nodepp/blob/main/LICENSE
+ */
+
+/*────────────────────────────────────────────────────────────────────────────*/
+
 #ifndef NODEPP_REGEX
 #define NODEPP_REGEX
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-namespace nodepp {
-
-/*────────────────────────────────────────────────────────────────────────────*/
-
-class regex_t { 
+namespace nodepp { class regex_t { 
 protected:
 
-    struct DONE { public:
-
-        char data = 0; bool f=0, r=0, n=0; ulong idx = 0;
-        DONE* alt = nullptr; array_t<DONE*> nxt;
-        ulong rep[2] = { 0, 0 };
-
-        virtual ~DONE(){ for( auto x:nxt ){ 
-            if(   x!=nullptr ){ delete x;     x = nullptr; }
-        }   if( alt!=nullptr ){ delete alt; alt = nullptr; } }
-
-        void pipe( function_t<DONE*,DONE*> cb ){
-            DONE* n = this; while( n!=nullptr ){
-                idx = 0; n = cb( n );
-            }
-        }
-
-    };  ptr_t<DONE> root;
-
-    bool icase=false, multi=false, dotl=false;
-
-    DONE* null() const noexcept { DONE* nw = new DONE; nw->data = 1; return nw; }
-
-    void add_new( DONE*& act, DONE*& prv, char data ) const noexcept {
-        DONE* nw = new DONE; nw->data = data; 
-        act->nxt.push( nw ); prv = act; act = nw;
-    }
-
-    int can_repeat( DONE* NODE ) const noexcept { 
-        if( !NODE->r ){ return -1; } NODE->idx++; 
-
-          if ( (long)NODE->rep[1] == 0 ){ return ( NODE->idx < NODE->rep[0] ) ? 0 :-1; } 
-        elif ( (long)NODE->rep[1] ==-1 ){ return ( NODE->idx < NODE->rep[0] ) ? 0 : 1; } 
-        
-        else {
-              if ( NODE->idx>=NODE->rep[0] && NODE->idx<=(NODE->rep[1]+1) ){ return  1; }
-            elif ( NODE->idx>=(NODE->rep[1]+1) )                           { return -1; }
-            else                                                           { return  0; }
-        }
-        
-    }
-
-    void add_flag( const char& flag, DONE* act ) const noexcept {
-        switch( string::to_lower(flag) ){
-            case 'b': act->f = 1; act->data = flag; break;
-            case 'w': act->f = 1; act->data = flag; break;
-            case 'd': act->f = 1; act->data = flag; break;
-            case 's': act->f = 1; act->data = flag; break;
-            default:              act->data = flag; break;
-        }
-    }
-
-    DONE* compile( const string_t& _reg ) const { 
-        
-        DONE* root = new DONE;
-        DONE* prv = nullptr;
-        DONE* act = root;
-
-        for( ulong i=0; i<_reg.size(); i++ ){ char x = _reg[i];
-
-            if( x == ']' || x == '}' || x == ')' ){
-                _ERROR(string::format( "regex at character: %d", i ));
-            }
-            
-            if( x == '?' || x == '*' || x == '+' ){ 
-                if( prv == nullptr ){ _ERROR(string::format( "regex at character: %d", i )); }
-                DONE* nw = new DONE; switch(x){
-                    case '?': nw->r = 1; nw->rep[0] = 0; nw->rep[1] = 1; break;
-                    case '*': nw->r = 1; nw->rep[0] = 1; nw->rep[1] =-1; break;
-                    case '+': nw->r = 1; nw->rep[0] = 2; nw->rep[1] =-1; break;
-                }   nw->alt = new DONE; nw->alt->nxt.push(act);
-                    prv->nxt[ prv->nxt.size()-1 ] = nw; 
-                    act->nxt.push( null() ); act  = nw;
-                continue;
-            }
-
-            if( x == '^' || x == '$' ){ add_new( act, prv, 0 ); switch(x){
-                    case '^': act->f = 1; act->data = '^'; break;
-                    case '$': act->f = 1; act->data = '$'; break;
-                }   continue;
-            }
+    struct NODE {
+        array_t<string_t> memory;
+        string_t regex, _data; 
+        ptr_t<int> _rep;
+        bool i;
+    };  ptr_t<NODE> obj;
     
     /*─······································································─*/
 
-            if( x == '\\' || x == '.' ){ add_new( act, prv, 0 );
-                if( x == '\\' ){ add_flag( _reg[i+1], act ); i++; }
-                if( x == '.' ){ act->f = 1; act->data = '.'; }                                       
-                continue;
+    array_t<int> get_next_regex( ulong _pos=0 ) const noexcept {
+        array_t<int> result ({ 0 });
+        while( _pos < obj->regex.size() ){
+            if( obj->regex[_pos] == '|' ){ result.push(_pos+1); }
+            if( obj->regex[_pos] == '[' || 
+                obj->regex[_pos] == '{' || 
+                obj->regex[_pos] == '(' 
+             ){ _pos = get_next_key( _pos ); continue; }
+            if( obj->regex[_pos] == '\\' ){ _pos++; } _pos++;
+        }   return result;
+    }
+
+    int get_next_key( ulong _pos ) const noexcept {
+        uchar k=0; while( _pos < obj->regex.size() ){
+
+            switch( obj->regex[_pos] ){  case '\\': _pos++;break;
+                case '[': k += 1; break; case ']': k -= 1; break; 
+                case '(': k += 2; break; case ')': k -= 2; break;
+                case '{': k += 3; break; case '}': k -= 3; break;
             }
+
+            if( k == 0 ){ break; } _pos++;
+        }   return _pos == obj->regex.size() ? -1 : _pos;
+    }
+
+    ptr_t<int> get_rep( int pos, int npos ) const noexcept {
+        ptr_t<int> rep ({ 0, 0 }); bool b=0; string_t num[2]; 
+        
+        obj->regex.slice( pos+1, npos ).map([&]( char& data ){
+              if(!string::is_digit(data) ){ b =! b; }
+            elif( string::is_digit(data) ){ num[b].push(data); }
+        }); 
+        
+        if( !num[0].empty() ) rep[0] = string::to_int( num[0] );
+        if( !num[1].empty() ) rep[1] = string::to_int( num[1] );
+
+        return rep;
+    }
+
+    int get_next_repeat( int pos ) const noexcept {
+        if( obj->regex[pos] == '{' ){ 
+            auto npos = get_next_key( pos );
+                 obj->_rep = get_rep( pos, npos ); pos = npos + 1;
+        }
+        elif( obj->regex[pos] == '?' ){ obj->_rep = ptr_t<int>({ 0, 1 }); pos++; }
+        elif( obj->regex[pos] == '*' ){ obj->_rep = ptr_t<int>({ 0,-1 }); pos++; }
+        elif( obj->regex[pos] == '+' ){ obj->_rep = ptr_t<int>({ 1,-1 }); pos++; }
+        else                          { obj->_rep = ptr_t<int>({ 1, 0 });        } return pos;
+    }
     
     /*─······································································─*/
 
-            if( x == '{' ){ i++; string_t s; ulong j=0; int k=0; DONE* nw = new DONE;
-                if( prv == nullptr ){ _ERROR(string::format( "regex at character: %d", i )); }
+    int check_reg_pattern( string_t str, ptr_t<ulong>& off, ptr_t<int>& pos ) const noexcept {
+    //  console::log( pos[0], (uchar) obj->_data[0], str[pos[1]] );
+        
+        goto CHCK; MORE: pos[1]++;
 
-                while( i<_reg.size() ){ char y = _reg[i];
-                    if( y == ',' ){ nw->rep[j] = string::to_ulong(s); s.clear(); i++; j++; continue; }
-                    if( y == '}' ){ if( !s.empty() ){ nw->rep[j] = string::to_ulong(s); s.clear(); } k--; break; } 
-                    if( !string::is_digit(y) ){ _ERROR(string::format( "regex at character: %d", i )); } s.push(y); i++;
-                }   if( k!=-1 ){ _ERROR(string::format( "regex at character: %d", i )); }
+        CHCK:
+            auto _str_ = obj->i ? string::to_lower(str[pos[1]]) : str[pos[1]];
 
-                    nw->alt = new DONE; nw->alt->nxt.push(act);
-                    prv->nxt[ prv->nxt.size()-1 ] = nw; 
-                    act->nxt.push( null() ); act  = nw;
-                    act->r = 1;
+            if( (ulong) pos[1] >= str.size() ){ goto DONE; }
 
-                continue;
-            }
-
-            if( x == '[' ){ i++; string_t s; ulong j=0; int k=0, n=0; add_new( act, prv, 0 );
-
-                while( i<_reg.size() ){ char y = _reg[i];
-                    if( j == 0 && y == '^' ){ n = true; i++; j++; continue; }
-                    if( y == ']' ){ k--; break; } s.push(y); i++; j++;
-                }   if( k!=-1 ){ _ERROR(string::format( "regex at character: %d", i )); }
+            if( (uchar) obj->_data[0] == '(' ){
+                regex_t reg ( obj->_data.slice(1), obj->i );
+                auto idx = reg._search( str,pos[1] );
+                  if ( idx == nullptr ){ goto DONE; }
+                else { pos[1]+= idx[1]-idx[0]-1;
+                       off[1]+= idx[1]-idx[0];
+                       store_mem( str, idx );
+                       goto LESS; 
+                     }
+            } elif( (uchar) obj->_data[0] == '[' ) {
                 
-                act->alt = new DONE; for( ulong i=0; i<s.size(); i++ ){ 
-                    if( s[i+1] == '-' && (i+2)<s.size() ){
-                        auto a = min( s[i], s[i+2] ); 
-                        auto b = max( s[i], s[i+2] );
-                        for( auto j=a; j<=b; j++ ){
-                            DONE* nw = new DONE; nw->data = j; nw->n = n;
-                            act->alt->nxt.push(nw); nw->nxt.push(null());
-                        }   i+=2;
-                    } else {
-                        DONE* nw = new DONE; nw->n = n;
-                        if( s[i] == '\\' ){ add_flag( s[i+1], nw ); i++; }
-                        else              { nw->data = s[i]; }
-                        act->alt->nxt.push(nw); nw->nxt.push(null());
-                    }
-                }   continue;
+                auto    x = obj->_data[1] == '^' ? 2 : 1;
+                auto list = compile_range(obj->_data.slice(x));
+
+                  if ( x == 2 && list.none([&]( char itm ){ return _str_ == itm; }))
+                     { off[1]++; goto LESS; }
+                elif ( x == 1 && list.some([&]( char itm ){ return _str_ == itm; }))
+                     { off[1]++; goto LESS; } goto DONE;
+
+            } elif( (uchar) obj->_data[0] == 0x00 ) {
+                                 goto CLSE;
+            } elif( (uchar) obj->_data[0] <= 0x02 ) {
+                if( compile_flg( obj->_data[0], str, pos[1] ) )
+                  { goto SKIP; } goto DONE;
+            } elif( (uchar) obj->_data[0] <= 0x0f ) {
+                if( compile_cmd( obj->_data[0], str, pos[1] ) )
+                  { off[1]++; goto LESS; } 
+                              goto DONE;
+            } else {
+                if( obj->_data[0] == _str_ )
+                  { off[1]++; goto LESS; } 
+                              goto DONE;
             }
 
-            if( x == '(' ){ i++; string_t s; add_new( act, prv, 0 ); long j=0;
-                while( i<_reg.size() ){ char y = _reg[i]; 
-                    if( y == '(' ){ j++; } elif ( y == ')' ){ j--; }
-                    if( j<0 && y == ')' ){ break; } s.push(y); i++; 
-                } if( j!=-1 ) { 
-                    _ERROR(string::format( "regex at character: %d", i )); }
-                if( !s.empty() ){ act->alt = compile(s); } continue;
+        LESS: pos[2]++;
+
+              if( obj->_rep[1] ==-1 ){ goto MORE; }
+            elif( obj->_rep[1] == 0 ){ 
+                  if( pos[2] < obj->_rep[0] ){ goto MORE; }
+                                               goto DONE;
+            } else {
+                  if( pos[2] < obj->_rep[0] ){ goto MORE; }
+                elif( pos[2] < obj->_rep[1] ){ goto MORE; }
+                else                         { goto DONE; }
             }
+            
+        DONE:
+
+            if( (ulong) pos[1] >= str.size() ){
+            if( (ulong) pos[0] <= obj->regex.last() && 
+                 !( obj->regex[pos[0]] == '$'   || 
+                    obj->regex[pos[0]] == '*'   || 
+                    obj->regex[pos[0]] == '+'   ||
+                    obj->regex[pos[0]] == '?'   ||
+                    obj->regex[pos[0]] == '|'   ||
+                    obj->regex[pos[0]] == '{'   ||
+                    obj->regex[pos[0]] == '}'   ||
+                    obj->regex[pos[0]] == '['   ||
+                    obj->regex[pos[0]] == ']'   ||
+                    obj->regex[pos[0]] == '('   ||
+                    obj->regex[pos[0]] == ')'
+                )){ goto FAIL; }
+                if( pos[2] >= obj->_rep[0] ){ goto CLSE; } goto FAIL;
+            } elif( pos[2] == 0 && obj->_rep[0] == 0 ){
+                goto SKIP;
+            } elif( obj->_rep[1] ==-1 ){
+                if( pos[2] >=obj->_rep[0] ){ goto SKIP; } goto FAIL;
+            } elif( obj->_rep[1] != 0 ) {
+                if( pos[2] > obj->_rep[1] ){ goto NEXT; }
+              elif( pos[2] >=obj->_rep[0] ){ goto NEXT; } goto FAIL;
+            } else {
+                if( pos[2] >=obj->_rep[0] ){ goto NEXT; } goto FAIL;
+            }
+
+        CLSE: pos[2] = 0; return -2;
+        FAIL: pos[2] = 0; return -1;
+        NEXT: pos[2] = 0; return  1;
+        SKIP: pos[2] = 0; return  0;
+
+    }
     
     /*─······································································─*/
 
-            if( x == '|' ){ add_new( act, prv, (char)1 ); 
-                root->nxt.push( new DONE );
-                act = root->nxt[ root->nxt.size()-1 ];
-                continue; 
-            }
-
-            add_new( act, prv, x ); 
-        }   act->nxt.push(null()); 
-
-    return root; }
-
-    ptr_t<ulong> match( const string_t& _str, ulong _off, DONE* NODE ) const noexcept {
-        if( icase ){ _str.to_lower_case(); }
-        
-        ptr_t<ulong> _res ({ 0, 0 }); if( _str.empty() )return _res;
-
-        ulong i=_off; NODE->pipe([&]( DONE* NODE ){ 
-            
-            char data = (i>=_str.size()) ? 1 : _str[i];
-            function_t<DONE*,bool> end ([&]( bool e ){ 
-                i++; if(e){ return NODE->nxt[0]; }
-                else { _off=i; return (DONE*) nullptr; }
-            });
-
-            if( NODE->data == 0 ){
-                if( NODE->alt != nullptr ){ ptr_t<ulong> idx; NODE->idx=0;
-                    for( auto x:NODE->alt->nxt ){ int c=1; ulong k=0; while(1){
-
-                    if( i > _str.size() ){ return end(1); }
-
-                    if( x->n ){
-
-                        if( NODE->alt->nxt.size() <= k ){ i++; return NODE->nxt[0]; }
-                            
-                        DONE* y = NODE->alt->nxt[k]; idx = match( _str, i, y );
-                        bool d = ( idx[0] != idx[1] ) ? 1 : 0;
-
-                        if( d ) return (DONE*) nullptr; else { k++; continue; }
-
-                    } else {
-
-                        idx = match( _str, i, x ); c = can_repeat(NODE);
-                        bool d = ( idx[0] != idx[1] ) ? 1 : 0;
-                             i = (!d) ? i : idx[1];
-
-                        if( c == 1 && !d ){ return NODE->nxt[0]; }
-                        if( c == 0 && !d ){ break; }
-
-                        if( c ==-1 ){
-                            if(d) { return NODE->nxt[0]; }
-                            else  { break; }
-                        }
-                    }
-
-                    }}  return (DONE*) nullptr;
-                }
-
-                else for( auto x:NODE->nxt ){ 
-                    ptr_t<ulong> idx = match( _str, i, x );
-                    if( idx[0] != idx[1] ){ i = idx[1]; break; }
-                }
-
-                if( i != _off ){ _res[0] = _off; _res[1] = i; 
-                    return (DONE*) nullptr; 
-                }   return end(0); 
-            }
-
-            if( NODE->f ){
-                if( NODE->data == '$' && data == 1 ){ return NODE->nxt[0]; }
-                if( NODE->data == '^' && i == 0 )   { return NODE->nxt[0]; }
-                switch( NODE->data ){
-
-                    case 'b': if( data == 1 || i == 0 ){ return NODE->nxt[0]; } return end(0); break;
-                    case '.': if( data == 0 || data == 1 ){ return end(0); }    break;
-                    case 'B': if( data == 1 || i == 0 )   { return end(0); }    break;
-                    case 's': if(!string::is_space(data) ){ return end(0); }    break;
-                    case 'S': if( string::is_space(data) ){ return end(0); }    break;
-                    case 'w': if(!string::is_alnum(data) ){ return end(0); }    break;
-                    case 'W': if( string::is_alnum(data) ){ return end(0); }    break;
-                    case 'd': if(!string::is_digit(data) ){ return end(0); }    break;
-                    case 'D': if( string::is_digit(data) ){ return end(0); }    break;
-                    default:                                return end(0);      break;
-                    
-                }   return end(1);
-            }
-
-            if( NODE->data == 1 ){ if( _off != i ){ _res[0] = _off; _res[1] = i; } return (DONE*) nullptr; }
-            if( data != NODE->data ){ return end(0); } return end(1);
-
-        }); return _res;
+    bool compile_cmd( char& flg, string_t& data, int pos ) const noexcept { 
+          if( flg == 0x03 &&  ( pos==0||(ulong)pos>=data.size()-1) ){ return true; } 
+        elif( flg == 0x04 && !( pos==0||(ulong)pos>=data.size()-1) ){ return true; }
+        elif( flg == 0x05 &&  string::is_alnum( data[pos] ) )       { return true; }
+        elif( flg == 0x06 &&  string::is_digit( data[pos] ) )       { return true; }
+        elif( flg == 0x07 &&  string::is_space( data[pos] ) )       { return true; }
+        elif( flg == 0x08 && !string::is_alnum( data[pos] ) )       { return true; }
+        elif( flg == 0x0e && !string::is_digit( data[pos] ) )       { return true; }
+        elif( flg == 0x0b && !string::is_space( data[pos] ) )       { return true; } 
+        elif( flg == 0x0c )                                         { return true; }
+        elif( flg == 0x0f )                   { return obj->_data[1] == data[pos]; }
+        else{ return data[pos] == flg; } return false;
     }
     
-public: regex_t() noexcept {}
+    /*─······································································─*/
 
-    regex_t( const string_t& _reg, const string_t& _flags="" ) noexcept {
-        for( auto x:_flags ){ switch(x){
-            case 'i': icase = true; break;
-            case 'm': multi = true; break; //not implemented
-            case 's': dotl  = true; break; //not implemented
-        }}  root = compile( _reg );
+    bool compile_flg( char& flg, string_t& data, int pos ) const noexcept {
+          if( flg == 0x01 && ((ulong)pos >= data.size()-1) ){ return true; }
+        elif( flg == 0x02 &&         pos == 0 )             { return true; } return false;
+    }
+    
+    /*─······································································─*/
+
+    string_t compile_range( string_t nreg ) const noexcept {
+        string_t reg;
+
+        for( ulong x=0; x<nreg.size(); x++ ){
+            if ( nreg[x]=='\\' ){ x++;
+            if ( x < nreg.size() ){ reg.push( nreg[x] ); }
+            } elif ( nreg[x+1] == '-' && (x+2)<nreg.size() ){
+                auto a = min( nreg[x], nreg[x+2] ); 
+                auto b = max( nreg[x], nreg[x+2] );
+                for( auto j=a; j<=b; j++ )
+                   { reg.push(j); } x+=2;
+            } else { reg.push( nreg[x] ); }
+        }
+
+        return reg;
+    }
+    
+    /*─······································································─*/
+
+    void store_mem( string_t& data, ptr_t<ulong>& pos ) const noexcept {
+        if( pos == nullptr ){ return; }
+        obj->memory.push( data.slice( pos[0], pos[1] ) );
+    }
+    
+    /*─······································································─*/
+
+    int compile( const string_t& str, ptr_t<ulong>& off, ptr_t<int>& pos ) const {
+        if( str == nullptr || obj->regex == nullptr ){ return -1; }
+
+        if( obj->_rep == nullptr && obj->_data != nullptr ){
+            pos[0] = get_next_repeat( pos[0] );
+        switch( check_reg_pattern( str, off, pos ) ){
+            case -1: obj->_data=nullptr; obj->_rep=nullptr; off[0]=off[1]; return -1;
+            case  1: obj->_data=nullptr; obj->_rep=nullptr; pos[1]++;      return  1;
+            case  0: obj->_data=nullptr; obj->_rep=nullptr;                return  1;
+            default: obj->_data=nullptr; obj->_rep=nullptr;                return -1;
+        }}
+
+    coStart
+        do { coNext;
+
+              if( obj->regex[pos[0]] == ']' || obj->regex[pos[0]] == '{' ||
+                  obj->regex[pos[0]] == '}' || obj->regex[pos[0]] == ')' 
+               ){ _ERROR(string::format( "regex: %d %c",pos[0], obj->regex[pos[0]] )); }
+
+            elif( obj->regex[pos[0]] == '(' || obj->regex[pos[0]] == '[' ){
+                 auto npos = get_next_key( pos[0] );
+            if ( npos < 0 )
+               { _ERROR(string::format( "regex: %d %c", pos[0], obj->regex[pos[0]] )); } 
+                 obj->_data = obj->regex.slice( pos[0], npos ); pos[0] = npos;
+            }
+
+            elif( obj->regex[pos[0]] == '|' ){ break; }
+            elif( obj->regex[pos[0]] == '$' ){ obj->_data.clear(); obj->_data.push( (char) 0x01 ); }
+            elif( obj->regex[pos[0]] == '^' ){ obj->_data.clear(); obj->_data.push( (char) 0x02 ); }
+            elif( obj->regex[pos[0]] == '.' ){ obj->_data.clear(); obj->_data.push( (char) 0x0c ); }
+
+            elif( obj->regex[pos[0]] == '\\' ){ pos[0]++;
+                                                obj->_data.clear(); obj->_data.push( (char) 0x0f );
+              if( obj->regex[pos[0]] == 'b'  ){ obj->_data.clear(); obj->_data.push( (char) 0x03 ); }
+            elif( obj->regex[pos[0]] == 'B'  ){ obj->_data.clear(); obj->_data.push( (char) 0x04 ); }
+            elif( obj->regex[pos[0]] == 'w'  ){ obj->_data.clear(); obj->_data.push( (char) 0x05 ); }
+            elif( obj->regex[pos[0]] == 'd'  ){ obj->_data.clear(); obj->_data.push( (char) 0x06 ); }
+            elif( obj->regex[pos[0]] == 's'  ){ obj->_data.clear(); obj->_data.push( (char) 0x07 ); }
+            elif( obj->regex[pos[0]] == 'W'  ){ obj->_data.clear(); obj->_data.push( (char) 0x08 ); }
+            elif( obj->regex[pos[0]] == 'D'  ){ obj->_data.clear(); obj->_data.push( (char) 0x0e ); }
+            elif( obj->regex[pos[0]] == 'S'  ){ obj->_data.clear(); obj->_data.push( (char) 0x0b ); }
+            else{ obj->_data += string::to_string(obj->regex[pos[0]]); } 
+            }
+
+            else {
+                obj->_data = string::to_string(obj->regex[pos[0]]);
+            }   obj->_rep  = nullptr;
+
+        } while( (ulong)++pos[0]<=obj->regex.size() );
+
+        obj->_data=nullptr; obj->_rep=nullptr;
+    coStop
+    }
+
+public: regex_t () noexcept : obj( new NODE() ) {}
+
+    regex_t ( const string_t& reg, bool icase=false ) noexcept : obj( new NODE() )
+            { obj->i = icase; obj->regex = reg; }
+    
+    /*─······································································─*/
+
+    ptr_t<string_t> get_memory() const noexcept {
+        return obj->memory.ptr();
+    }
+    
+    /*─······································································─*/
+
+    ptr_t<ulong> _search( string_t _str, int off=0 ) const {
+        ptr_t<ulong> res ({ (ulong)off, (ulong)off });
+
+        for( auto &x: get_next_regex() ){
+             ptr_t<int> pos ({ x, off, 0 }); res[0] = off; res[1] = off;
+             while( compile( _str, res, pos )==1 ){ /*process::next();*/ }
+                if( res[0] != res[1] ){ break; }
+        }
+
+        return res[0]==res[1] ? nullptr : res;
+    }
+    
+    /*─······································································─*/
+
+    ptr_t<ulong> search( string_t _str, uint off=0 ) const {
+        ptr_t<ulong> result; while( off < _str.size() ){
+            result = _search( _str, off );
+            if( result != nullptr )
+              { break; } off++;
+        }   return result;
+    }
+    
+    /*─······································································─*/
+
+    array_t<ptr_t<ulong>> search_all( const string_t& _str ) const noexcept {
+        array_t<ptr_t<ulong>> result; ulong off=0; while(1){
+            auto idx = search( _str, off );
+            if( idx == nullptr )  { return result; }
+            if( idx[0] == idx[1] ){ return result; } off=idx[1];
+                ptr_t<ulong> mem({ idx[0], idx[1] }); result.push(mem);
+        }
     }
     
     /*─······································································─*/
@@ -271,11 +336,9 @@ public: regex_t() noexcept {}
             _str.splice( x[0], x[1] - x[0], _rep );
         }   return _str;
     }
-    
-    /*─······································································─*/
 
-    string_t replace( string_t _str, const string_t& _rep, ulong s=0 ) const noexcept {
-        auto idx = search( _str, s );
+    string_t replace( string_t _str, const string_t& _rep, ulong off=0 ) const noexcept {
+        auto idx = search( _str, off );
         if( idx == nullptr )  { return _str; }
         if( idx[0] == idx[1] ){ return _str; }
             _str.splice( idx[0], idx[1] - idx[0], _rep ); return _str;
@@ -283,22 +346,17 @@ public: regex_t() noexcept {}
     
     /*─······································································─*/
 
-    array_t<ptr_t<ulong>> search_all( const string_t& _str ) const noexcept {
-        array_t<ptr_t<ulong>> result; ulong s=0; while(1){
-            auto idx = search( _str, s );
-            if( idx == nullptr )  { return result; }
-            if( idx[0] == idx[1] ){ return result; } s=idx[1];
-                ptr_t<ulong> mem({ idx[0], idx[1] }); result.push(mem);
-        }
+    string_t remove_all( string_t _str ) const noexcept {
+        auto idx = search_all( _str ).reverse(); for( auto x : idx ){
+            _str.splice( x[0], x[1] - x[0] );
+        }   return _str;
     }
-    
-    /*─······································································─*/
 
-    ptr_t<ulong> search( const string_t& _str, ulong s=0 ) const noexcept {
-        for( ulong i=s; i<_str.size(); i++ ){
-            auto idx = this->match( _str, i, &root );
-            if( idx[0] != idx[1] ) return idx;
-        }   return (ulong*) nullptr;
+    string_t remove( string_t _str, ulong off=0 ) const noexcept {
+        auto idx = search( _str, off );
+        if( idx == nullptr )  { return _str; }
+        if( idx[0] == idx[1] ){ return _str; }
+            _str.splice( idx[0], idx[1] - idx[0] ); return _str;
     }
     
     /*─······································································─*/
@@ -312,66 +370,114 @@ public: regex_t() noexcept {}
     
     /*─······································································─*/
 
-    string_t match( const string_t& _str, ulong s=0 ) const noexcept { 
-        auto idx = search( _str, s );
-        if( idx == nullptr )  { return ""; }
-        if( idx[0] == idx[1] ){ return ""; }
+    string_t match( const string_t& _str, ulong off=0 ) const noexcept { 
+        auto idx = search( _str, off );
+        if( idx == nullptr )  { return nullptr; }
+        if( idx[0] == idx[1] ){ return nullptr; }
             return _str.slice( idx[0], idx[1] );
     }
     
     /*─······································································─*/
 
-    bool test( const string_t& _str, ulong s=0 ) const noexcept {
-        auto idx = search( _str, s );
+    bool test( const string_t& _str, ulong off=0 ) const noexcept {
+        auto idx = search( _str, off );
         if( idx == nullptr )  { return 0; }
         if( idx[0] == idx[1] ){ return 0; }
                                 return 1;
     }
 
-};
+};}
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-namespace regex {
+namespace nodepp { namespace regex {
 
-    string_t replace_all( const string_t& _str, const string_t& _reg, const string_t& _rep, const string_t& _flg="" ){
+    string_t replace_all( const string_t& _str, const string_t& _reg, const string_t& _rep, bool _flg=false ){
         regex_t reg( _reg, _flg ); return reg.replace_all( _str, _rep );
     }
+
+    string_t replace_all( const string_t& _str, const regex_t& reg, const string_t& _rep ){
+        return reg.replace_all( _str, _rep );
+    }
     
     /*─······································································─*/
 
-    array_t<ptr_t<ulong>> search_all( const string_t& _str, const string_t& _reg, const string_t& _flg="" ){
+    string_t remove_all( const string_t& _str, const string_t& _reg, bool _flg=false ){
+        regex_t reg( _reg, _flg ); return reg.remove_all( _str );
+    }
+
+    string_t remove_all( const string_t& _str, const regex_t& reg ){
+        return reg.remove_all( _str );
+    }
+    
+    /*─······································································─*/
+
+    array_t<ptr_t<ulong>> search_all( const string_t& _str, const string_t& _reg, bool _flg=false ){
         regex_t reg( _reg, _flg ); return reg.search_all( _str );
     }
+
+    array_t<ptr_t<ulong>> search_all( const string_t& _str, const regex_t& reg ){
+        return reg.search_all( _str );
+    }
     
     /*─······································································─*/
 
-    string_t replace( const string_t& _str, const string_t& _reg, const string_t& _rep, const string_t& _flg="" ){
+    string_t replace( const string_t& _str, const string_t& _reg, const string_t& _rep, bool _flg=false ){
         regex_t reg( _reg, _flg ); return reg.replace( _str, _rep );
     }
+
+    string_t replace( const string_t& _str, const regex_t& reg, const string_t& _rep ){
+        return reg.replace( _str, _rep );
+    }
     
     /*─······································································─*/
 
-    array_t<string_t> match_all( const string_t& _str, const string_t& _reg, const string_t& _flg="" ){
+    string_t remove( const string_t& _str, const string_t& _reg, bool _flg=false ){
+        regex_t reg( _reg, _flg ); return reg.remove( _str );
+    }
+
+    string_t remove( const string_t& _str, const regex_t& reg ){
+        return reg.remove( _str );
+    }
+    
+    /*─······································································─*/
+
+    array_t<string_t> match_all( const string_t& _str, const string_t& _reg, bool _flg=false ){
         regex_t reg( _reg, _flg ); return reg.match_all( _str );
     }
-    
-    /*─······································································─*/
 
-    ptr_t<ulong> search( const string_t& _str, const string_t& _reg, const string_t& _flg="" ){
-        regex_t reg( _reg, _flg ); return reg.search( _str );
+    array_t<string_t> match_all( const string_t& _str, const regex_t& reg ){
+        return reg.match_all( _str );
     }
     
     /*─······································································─*/
 
-    string_t match( const string_t& _str, const string_t& _reg, const string_t& _flg="" ){
+    ptr_t<ulong> search( const string_t& _str, const string_t& _reg, bool _flg=false ){
+        regex_t reg( _reg, _flg ); return reg.search( _str );
+    }
+
+    ptr_t<ulong> search( const string_t& _str, const regex_t& reg ){
+        return reg.search( _str );
+    }
+    
+    /*─······································································─*/
+
+    string_t match( const string_t& _str, const string_t& _reg, bool _flg=false ){
         regex_t reg( _reg, _flg ); return reg.match( _str );
     }
 
+    string_t match( const string_t& _str, const regex_t& reg ){
+        return reg.match( _str );
+    }
+
     /*─······································································─*/
 
-    bool test( const string_t& _str, const string_t& _reg, const string_t& _flg="" ){
+    bool test( const string_t& _str, const string_t& _reg, bool _flg=false ){
         regex_t reg( _reg, _flg ); return reg.test( _str );
+    }
+
+    bool test( const string_t& _str, const regex_t& reg ){
+        return reg.test( _str );
     }
 
     /*─······································································─*/
@@ -380,10 +486,14 @@ namespace regex {
 
     array_t<string_t> split( const string_t& _str, int ch ){ return string::split( _str, ch ); }
 
-    array_t<string_t> split( const string_t& _str, const string_t& _reg ){ 
+    array_t<string_t> split( const string_t& _str, const string_t& _reg, bool _flg=false ){ 
           if ( _reg.size() == 1 ){  return string::split( _str, _reg[0] ); }
-        elif ( _reg.empty() ){ return string::split( _str, 1 ); }
-        regex_t reg(_reg);     return reg.split( _str ); 
+        elif ( _reg.empty() ) { return string::split( _str, 1 ); }
+        regex_t reg(_reg,_flg); return reg.split( _str ); 
+    }
+
+    array_t<string_t> split( const string_t& _str, const regex_t& reg ){ 
+        return reg.split( _str ); 
     }
 
     /*─······································································─*/
@@ -401,10 +511,8 @@ namespace regex {
         },  args... ); return result;
     }
 
-}
+}}
 
 /*────────────────────────────────────────────────────────────────────────────*/
-
-}
 
 #endif

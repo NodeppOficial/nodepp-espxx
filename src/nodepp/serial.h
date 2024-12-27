@@ -9,15 +9,15 @@
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
-#ifndef NODEPP_SLEEP
-#define NODEPP_SLEEP
+#ifndef NODEPP_SERIAL
+#define NODEPP_SERIAL
 
 /*────────────────────────────────────────────────────────────────────────────*/
 
 #if _KERNEL == NODEPP_KERNEL_ARDUINO
-    #include "arduino/sleep.cpp"
+    #include "arduino/serial.cpp"
 #else
-    #error "This OS Does not support sleep.h"
+    #error "This OS Does not support serial.h"
 #endif
 
 /*────────────────────────────────────────────────────────────────────────────*/

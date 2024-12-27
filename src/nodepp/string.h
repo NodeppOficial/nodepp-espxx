@@ -1,3 +1,14 @@
+/*
+ * Copyright 2023 The Nodepp Project Authors. All Rights Reserved.
+ *
+ * Licensed under the MIT (the "License").  You may not use
+ * this file except in compliance with the License.  You can obtain a copy
+ * in the file LICENSE in the source distribution or at
+ * https://github.com/NodeppOficial/nodepp/blob/main/LICENSE
+ */
+
+/*────────────────────────────────────────────────────────────────────────────*/
+
 #ifndef NODEPP_STRING
 #define NODEPP_STRING
 
@@ -23,19 +34,23 @@ namespace string {
     
     /*─······································································─*/
 
-    ptr_t<char> buffer( ulong n ){ auto b = ptr_t<char>( n+1, '\0' ); return b; }
+    ptr_t<char> buffer( ulong n ){ 
+        if ( n == 0 ){ return nullptr; }
+        auto b = ptr_t<char>( n+1,'\0' ); return b; 
+    }
 
     ptr_t<char> buffer( const char* c, ulong n ){
-        auto b = ptr_t<char>( n+1, '\0' );
-        while( n-->0 ){ b[n] = c[n]; } return b; 
+        if ( c == nullptr ){ return nullptr; }
+        if ( n == 0 ){ return nullptr; }
+        auto b = ptr_t<char>( n+1,'\0' );
+        memcpy( &b, c, n ); return b; 
     }
 
     ptr_t<char> buffer( ulong n, const char& c ){
-        auto b = ptr_t<char>( n+1, '\0' );
-        while( n-->0 ){ b[n] = c; } return b; 
+        if ( n == 0 ){ return nullptr; }
+        auto b = ptr_t<char>( n+1,'\0' );
+        memset( &b, c, n ); return b; 
     }
-
-    ptr_t<char> null(){ return string::buffer( "", 0 ); }
     
     /*─······································································─*/
 
@@ -64,7 +79,7 @@ protected:
         
         if( empty() || x == y ){ return nullptr; } if( y>0 ){ y--; }
 
-        if( x < 0 ){ x = last() + x; } if( (ulong)x > last() ){ return nullptr; }
+        if( x < 0 ){ x = size() + x; } if( (ulong)x > last() ){ return nullptr; }
         if( y < 0 ){ y = last() + y; } if( (ulong)y > last() ){ y = last(); } 
                                        if( y < x )            { return nullptr; }
 
@@ -90,23 +105,23 @@ protected:
     
 public:
 
-    string_t() noexcept { buffer = ""; }
+    string_t() noexcept { buffer = nullptr; }
 
-    string_t( const char* argc ) noexcept { ulong n=0;
-        if( argc == nullptr || (n=strlen(argc))==0 ){ 
-            buffer = ""; return;
-        }   buffer = string::buffer( argc, n );
+    string_t( const char* argc ) noexcept {
+        if( argc == nullptr ){ 
+            buffer = nullptr; return;
+        }   buffer = string::buffer( argc, strlen(argc) );
     }
 
     string_t( const ulong& n, const char& c ) noexcept {
-        if( n==0 ){ 
-            buffer = ""; return;
+        if( n == 0 ){ 
+            buffer = nullptr; return;
         }   buffer = string::buffer( n, c );
     }
 
     string_t( const char* argc, const ulong& n ) noexcept {
         if( argc == nullptr || n == 0 ){ 
-            buffer = ""; return;
+            buffer = nullptr; return;
         }   buffer = string::buffer( argc, n );
     }
     
@@ -141,9 +156,6 @@ public:
     bool operator>=( const string_t& oth ) const noexcept { return compare( oth ) >= 0; }
     bool operator<=( const string_t& oth ) const noexcept { return compare( oth ) <= 0; }
     bool operator< ( const string_t& oth ) const noexcept { return compare( oth ) ==-1; }
-    
-    /*─······································································─*/
-
     bool operator==( const string_t& oth ) const noexcept { return compare( oth ) == 0; }
     bool operator!=( const string_t& oth ) const noexcept { return compare( oth ) != 0; }
     
@@ -152,11 +164,11 @@ public:
     /*─······································································─*/
 
     long index_of( function_t<bool,char> func ) const noexcept { long i=0;
-        for( auto x : *this ){ if( func(x) ) return i; i++; } return -1;
+        for( auto& x : *this ){ if( func(x) ) return i; i++; } return -1;
     }
 
     ulong count( function_t<bool,char> func ) const noexcept { ulong n=0; 
-        for( auto x : *this ){ if( func(x) ) n++; } return n;
+        for( auto& x : *this ){ if( func(x) ) n++; } return n;
     }
     
     /*─······································································─*/
@@ -167,24 +179,25 @@ public:
     }
 
     bool some( function_t<bool,char> func ) const noexcept { 
-        for( auto x : *this ){ if( func(x) ) return 1; } return 0;
+        for( auto& x : *this ){ if( func(x) ) return 1; } return 0;
     }
 
     bool none( function_t<bool,char> func ) const noexcept { 
-        for( auto x : *this ){ if( func(x) ) return 0; } return 1;
+        for( auto& x : *this ){ if( func(x) ) return 0; } return 1;
     }
 
     bool every( function_t<bool,char> func ) const noexcept { 
-        for( auto x : *this ){ if(!func(x) ) return 0; } return 1;
+        for( auto& x : *this ){ if(!func(x) ) return 0; } return 1;
     }
 
-    void map( function_t<void,char> func ) const noexcept { 
-        for( auto x : *this ) func(x);
+    void map( function_t<void,char&> func ) const noexcept { 
+        for( auto& x : *this ) func(x);
     }
     
     /*─······································································─*/
 
     ptr_t<int> find( const string_t& data, ulong offset=0 ) const noexcept {
+        if ( data.empty() ){ return nullptr; }
         ulong x=0; int n=0; ptr_t<int> pos ({ 0, 0 });
         for( ulong i=offset; i<buffer.size(); i++ ){ 
             if ( buffer[i] == data[x] ){
@@ -217,17 +230,15 @@ public:
         ulong n=size(); while( n-->0 ){ if( func((*this)[n]) ) erase(n); } return (*this);
     }
 
-    string_t copy() const noexcept { auto n_buffer = string::buffer(size());
-        ulong n=first(); for( auto x : *this ){ n_buffer[n]=x; n++; } return n_buffer;
-    }
-
     string_t reverse() const noexcept { auto n_buffer = copy();
-        ulong n=size(); for( auto x : *this ){ n--; n_buffer[n]=x; } return n_buffer;
+        ulong n=size(); for( auto& x : *this ){ n--; n_buffer[n]=x; } return n_buffer;
     }
     
     string_t replace( function_t<bool,char> func, char targ ) const noexcept {
         for( auto& x : *this ){ if(func(x)) x=targ; } return (*this); 
     }
+
+    string_t copy() const noexcept { return buffer.copy(); }
 
     /*─······································································─*/
 
@@ -239,17 +250,18 @@ public:
     /*─······································································─*/
 
     string_t sort( function_t<bool,char,char> func ) const noexcept {
-        auto n_buffer = copy();
+        queue_t<char> n_buffer;
 
-        while(1){ ulong nn = 0; for( ulong i=0; i<size(); i++ ){
-            long act=i, prv = i-1; if( prv<0 ) continue;
-            char _act = n_buffer[act], _prv = n_buffer[prv];
-            if( func( _prv, _act ) == 0 ){ continue; } nn++;
-            n_buffer[act] = _prv; n_buffer[prv] = _act;
-        } if( nn == 0 ) break; }
-        
-        return n_buffer;
-    } 
+        for( ulong i=0; i<size(); i++ ){
+            auto x = buffer[i]; auto n = n_buffer.first();
+            while( n!=nullptr ){ 
+               if( !func( x, n->data ) )
+                 { n = n->next; continue; } break;
+            }      n_buffer.insert( n, x );
+        }          n_buffer.push('\0'); 
+
+        return n_buffer.data();
+    }
     
     /*─······································································─*/
 
@@ -338,7 +350,7 @@ public:
     string_t slice( long start ) const noexcept {
         
         auto r = get_slice_range( start, size() );
-         if( r == nullptr ){ return ""; }
+         if( r == nullptr ){ return nullptr; }
 
         auto n_buffer = string_t( buffer.data()+r[0], r[2] );
         return n_buffer;
@@ -349,7 +361,7 @@ public:
     string_t slice( long start, long end ) const noexcept {
         
         auto r = get_slice_range( start, end );
-         if( r == nullptr ){ return ""; }
+         if( r == nullptr ){ return nullptr; }
 
         auto n_buffer = string_t( buffer.data()+r[0], r[2] );
         return n_buffer;
@@ -360,7 +372,7 @@ public:
     string_t splice( long start, ulong end ) noexcept { 
         
         auto r = get_splice_range( start, end );
-         if( r == nullptr ){ return ""; }
+         if( r == nullptr ){ return nullptr; }
 
         auto n_buffer = string_t( buffer.data()+r[0], r[2] );
         erase( r[0], r[0]+end ); return n_buffer;
@@ -370,7 +382,7 @@ public:
     string_t splice( long start, ulong end, const V& value ) noexcept {
         
         auto r = get_splice_range( start, end );
-         if( r == nullptr ){ return ""; }
+         if( r == nullptr ){ return nullptr; }
 
         auto n_buffer = string_t( buffer.data()+r[0], r[2] );
         erase( r[0], r[0]+end ); insert( r[0], value ); return n_buffer;
@@ -383,21 +395,21 @@ public:
         for( ulong x=0; x<res.size(); x++ ){ auto y = buffer[x];
             if( string::is_alpha(y) && b==1 ){ res[x] = string::to_upper(y); b=0; continue; }
             if(!string::is_alpha(y) ){ b =1;}  res[x] = string::to_lower(y);
-        }   return &res;
+        }   return res;
     }
 
     string_t to_lower_case() const noexcept {
         if ( empty() ){ return nullptr; } ptr_t<char> res (size()+1,0);
         for( ulong x=0; x<res.size(); x++ ){
              res[x] = string::to_lower( buffer[x] );
-        }    return &res;
+        }    return res;
     }
 
     string_t to_upper_case() const noexcept { 
         if ( empty() ){ return nullptr; } ptr_t<char> res (size()+1,0);
         for( ulong x=0; x<res.size(); x++ ){
              res[x] = string::to_upper( buffer[x] );
-        }    return &res;
+        }    return res;
     }
 
     string_t to_slugify() const noexcept { ulong z=0;
@@ -412,6 +424,7 @@ public:
 
     explicit operator char* (void) const noexcept { return empty() ? (char*)"" : &buffer; }
           char*  data() const noexcept { return empty() ? (char*) "" : &buffer; }
+          char*   get() const noexcept { return empty() ? (char*) "" : &buffer; }
     const char* c_str() const noexcept { return empty() ?         "" : &buffer; }
     explicit operator bool(void) const noexcept { return empty(); }
     ptr_t<char>&  ptr() noexcept { return buffer; }
@@ -426,6 +439,18 @@ string_t operator+( const string_t& A, const string_t& B ){
     for( auto x : B ){ C[n] = x; n++; } return C;
 }
 
+string_t operator^( const string_t& A, const string_t& B ){
+    string_t C = string::buffer( A.size() );
+    for( ulong x=0; x<C.size(); x++ )
+       { C[x] = A[x] ^ B[x%B.size()]; }
+    return C;
+}
+
+void operator^=( string_t& A, const string_t& B ){
+    for( ulong x=0; x<A.size(); x++ )
+       { A[x] = A[x] ^ B[x%B.size()]; }
+}
+
 /*────────────────────────────────────────────────────────────────────────────*/
 
 namespace string {
@@ -438,6 +463,11 @@ namespace string {
     bool to_bool( const string_t& buffer ){ 
         int out=0; if( buffer.empty() ){ return out; }
         sscanf( (char*) buffer, "%d", &out ); return out;
+    }
+
+    ldouble to_ldouble( const string_t& buffer ){
+        ldouble out=0.0f; if( buffer.empty() ){ return out; }
+        sscanf( (char*) buffer, "%Lf", &out ); return out;
     }
 
     double to_double( const string_t& buffer ){
@@ -506,21 +536,6 @@ namespace string {
     
     /*─······································································─*/
     
-    template< class T >
-    string_t to_hex( T num ){
-        char buffer[32]; auto x = sprintf( buffer, "%x", num ); 
-        return { buffer, (ulong)x };
-    }
-
-    template< class T >
-    string_t to_bin( T num ){
-        char buffer[sizeof(T)*8]; uint n=sizeof(T)*8-1; do {
-             buffer[n] = num & 1 ? '1' : '0'; num >>= 1;
-        }    while( n-->0 ); return { buffer, sizeof(T)*8 };
-    }
-    
-    /*─······································································─*/
-    
     inline string_t to_string( char* num ){ return num; }
 
     inline string_t to_string( const char* num ){ return num; }
@@ -569,6 +584,11 @@ namespace string {
 
     string_t to_string( double num ){
         char buffer[32]; auto x = sprintf( buffer, "%lf", num );
+        return { buffer, (ulong)x };
+    }
+
+    string_t to_string( ldouble num ){
+        char buffer[32]; auto x = sprintf( buffer, "%Lf", num );
         return { buffer, (ulong)x };
     }
 
