@@ -13,7 +13,7 @@
 #define NODEPP_POLL
 
 #if _KERNEL == NODEPP_KERNEL_ARDUINO
-    #include "event.h"
+    #include "wait.h"
     #include "arduino/poll.cpp"
 #else
     #error "poll.h is not supported by this OS"
